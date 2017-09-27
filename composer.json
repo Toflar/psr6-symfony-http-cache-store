@@ -1,0 +1,29 @@
+{
+    "name": "toflar/psr6-symfony-http-cache-store",
+    "description": "An alternative store implementation for Symfony's HttpCache reverse proxy that supports auto-pruning of expired entries and cache invalidation by tags.",
+    "type": "library",
+    "require": {
+        "php": "^5.6|^7.0",
+        "symfony/lock": "^3.4@dev",
+        "symfony/cache": "^3.4@dev",
+        "symfony/http-foundation": "^3.0",
+        "symfony/http-kernel": "^3.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.6",
+        "phpunit/phpunit": "^5.7",
+        "satooshi/php-coveralls": "2.0.x-dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Toflar\\Psr6HttpCacheStore\\": "src"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Yanick Witschi",
+            "email": "yanick.witschi@terminal42.ch"
+        }
+    ]
+}
