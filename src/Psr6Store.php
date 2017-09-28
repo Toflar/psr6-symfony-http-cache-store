@@ -94,7 +94,8 @@ final class Psr6Store implements StoreInterface
      *                      Type: int
      *                      Default: 500
      *
-     * - purge_tags_header: The HTTP header name used to check for tags
+     * - cache_tags_header: Name of HTTP header containing a comma separated
+     *                      list of tags to tag the response with.
      *
      *                      Type: string
      *                      Default: Cache-Tags
@@ -111,8 +112,8 @@ final class Psr6Store implements StoreInterface
         $resolver->setDefault('prune_threshold', 500)
             ->setAllowedTypes('prune_threshold', 'int');
 
-        $resolver->setDefault('purge_tags_header', 'Cache-Tags')
-            ->setAllowedTypes('purge_tags_header', 'string');
+        $resolver->setDefault('cache_tags_header', 'Cache-Tags')
+            ->setAllowedTypes('cache_tags_header', 'string');
 
         $resolver->setDefault('cache', function (Options $options) {
             if (!isset($options['cache_directory'])) {
@@ -231,8 +232,8 @@ final class Psr6Store implements StoreInterface
 
         // Tags
         $tags = [];
-        if ($response->headers->has($this->options['purge_tags_header'])) {
-            $tags = explode(',', $response->headers->get($this->options['purge_tags_header']));
+        if ($response->headers->has($this->options['cache_tags_header'])) {
+            $tags = explode(',', $response->headers->get($this->options['cache_tags_header']));
         }
 
         // Prune expired entries on file system if needed
@@ -356,13 +357,14 @@ final class Psr6Store implements StoreInterface
 
     /**
      * Remove/Expire cache objects based on cache tags.
-     * Returns true on success and false otherwise.
+     *
+     * The tags are set from the header configured in cache_tags_header.
      *
      * @param array $tags Tags that should be removed/expired from the cache
      *
      * @throws \RuntimeException if incompatible cache adapter provided
      *
-     * @return bool
+     * @return bool true on success, false otherwise
      */
     public function invalidateTags(array $tags)
     {

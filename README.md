@@ -88,11 +88,20 @@ passing an array of `$options` in the constructor:
   **Type**: `int`
   **Default**: `500`
 
-* **purge_tags_header**: The HTTP header name used to check for tags
+* **cache_tags_header**: The HTTP header name used to check for tags
 
   **Type**: `string`
   **Default**: `Cache-Tags`
 
+### Cache Tagging
+
+Tag cache entries by adding a response header with the tags as a comma 
+separated value. By default, that header is called `Cache-Tags`, this can be
+overwritten in `cache_tags_header`.
+
+To invalidate tags, call the method `Psr6Store::invalidateTags` or use the
+`PurgeTagsListener` from the [FOSHttpCache][3] library to handle tag 
+invalidation requests.
 
 ### WARNING
 
