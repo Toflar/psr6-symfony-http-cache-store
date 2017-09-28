@@ -20,7 +20,6 @@ use Symfony\Component\Cache\PruneableInterface;
 use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\Factory;
 use Symfony\Component\Lock\LockInterface;
@@ -38,7 +37,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  *
  * @author Yanick Witschi <yanick.witschi@terminal42.ch>
  */
-final class Psr6Store implements StoreInterface
+final class Psr6Store implements Psr6StoreInterface
 {
     const NON_VARYING_KEY = 'non-varying';
     const COUNTER_KEY = 'write-operations-counter';
@@ -356,15 +355,9 @@ final class Psr6Store implements StoreInterface
     }
 
     /**
-     * Remove/Expire cache objects based on cache tags.
-     *
      * The tags are set from the header configured in cache_tags_header.
      *
-     * @param array $tags Tags that should be removed/expired from the cache
-     *
-     * @throws \RuntimeException if incompatible cache adapter provided
-     *
-     * @return bool true on success, false otherwise
+     * {@inheritdoc}
      */
     public function invalidateTags(array $tags)
     {
@@ -378,6 +371,37 @@ final class Psr6Store implements StoreInterface
         } catch (InvalidArgumentException $e) {
             return false;
         }
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * Increases a counter every time an item is stored to the cache and then
+     * prunes expired cache entries if a configurable threshold is reached.
+     * This only happens during write operations so cache retrieval is not
+     * slowed down.
+     */
+    public function pruneExpiredEntries()
+    {
+        if (!$this->cache instanceof PruneableInterface
+            || 0 === $this->options['prune_threshold']
+        ) {
+            return;
+        }
+
+        $item = $this->cache->getItem(self::COUNTER_KEY);
+        $counter = (int) $item->get();
+
+        if ($counter > $this->options['prune_threshold']) {
+            $this->cache->prune();
+            $counter = 0;
+        } else {
+            ++$counter;
+        }
+
+        $item->set($counter);
+
+        $this->cache->saveDeferred($item);
     }
 
     /**
@@ -492,34 +516,5 @@ final class Psr6Store implements StoreInterface
         }
 
         return new FlockStore($cacheDir);
-    }
-
-    /**
-     * Increases a counter every time an item is stored to the cache and then
-     * prunes expired cache entries if a configurable threshold is reached.
-     * This only happens during write operations so cache retrieval is not
-     * slowed down.
-     */
-    private function pruneExpiredEntries()
-    {
-        if (!$this->cache instanceof PruneableInterface
-            || 0 === $this->options['prune_threshold']
-        ) {
-            return;
-        }
-
-        $item = $this->cache->getItem(self::COUNTER_KEY);
-        $counter = (int) $item->get();
-
-        if ($counter > $this->options['prune_threshold']) {
-            $this->cache->prune();
-            $counter = 0;
-        } else {
-            ++$counter;
-        }
-
-        $item->set($counter);
-
-        $this->cache->saveDeferred($item);
     }
 }
