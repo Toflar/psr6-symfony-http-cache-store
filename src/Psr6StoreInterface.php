@@ -14,8 +14,8 @@ namespace Toflar\Psr6HttpCacheStore;
 use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
 
 /**
- * Interface for the Psr6Store that eases mocking the
- * final implementation for third party libraries.
+ * Interface for a more powerful cache store that supports cache tagging
+ * and pruning expired cache entries.
  *
  * @author Yanick Witschi <yanick.witschi@terminal42.ch>
  */
@@ -35,7 +35,8 @@ interface Psr6StoreInterface extends StoreInterface
     /**
      * Prunes expired entries.
      * This method must not throw any exception but silently try to
-     * prune the file system if the cache adapter supports it.
+     * prune expired cache entries from storage if the cache adapter supports
+     * it.
      */
     public function pruneExpiredEntries();
 }
