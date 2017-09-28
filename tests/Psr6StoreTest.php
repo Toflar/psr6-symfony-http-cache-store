@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -426,7 +427,25 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($cacheItem->isHit());
     }
 
-    public function testPruneExpiredEntries()
+    public function testPruneIgnoredIfCacheBackendDoesNotImplementPrunableInterface()
+    {
+        $cache = $this->getMockBuilder(RedisAdapter::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['prune'])
+            ->getMock();
+        $cache
+            ->expects($this->never())
+            ->method('prune');
+
+        $store = new Psr6Store([
+            'cache_directory' => sys_get_temp_dir(),
+            'cache' => $cache,
+        ]);
+
+        $store->prune();
+    }
+
+    public function testAutoPruneExpiredEntries()
     {
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)
@@ -454,7 +473,7 @@ class Psr6StoreTest extends TestCase
         $store->cleanup();
     }
 
-    public function testPruneIsSkippedIfThresholdDisabled()
+    public function testAutoPruneIsSkippedIfThresholdDisabled()
     {
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)

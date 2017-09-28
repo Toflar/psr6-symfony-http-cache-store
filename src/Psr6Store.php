@@ -236,7 +236,7 @@ final class Psr6Store implements Psr6StoreInterface
         }
 
         // Prune expired entries on file system if needed
-        $this->pruneExpiredEntries();
+        $this->autoPruneExpiredEntries();
 
         $this->saveDeferred($cacheKey, $entries, $response->getMaxAge(), $tags);
 
@@ -375,33 +375,14 @@ final class Psr6Store implements Psr6StoreInterface
 
     /**
      * {@inheritdoc}
-     *
-     * Increases a counter every time an item is stored to the cache and then
-     * prunes expired cache entries if a configurable threshold is reached.
-     * This only happens during write operations so cache retrieval is not
-     * slowed down.
      */
-    public function pruneExpiredEntries()
+    public function prune()
     {
-        if (!$this->cache instanceof PruneableInterface
-            || 0 === $this->options['prune_threshold']
-        ) {
+        if (!$this->cache instanceof PruneableInterface) {
             return;
         }
 
-        $item = $this->cache->getItem(self::COUNTER_KEY);
-        $counter = (int) $item->get();
-
-        if ($counter > $this->options['prune_threshold']) {
-            $this->cache->prune();
-            $counter = 0;
-        } else {
-            ++$counter;
-        }
-
-        $item->set($counter);
-
-        $this->cache->saveDeferred($item);
+        $this->cache->prune();
     }
 
     /**
@@ -449,6 +430,33 @@ final class Psr6Store implements Psr6StoreInterface
     public function generateContentDigest(Response $response)
     {
         return 'en'.hash('sha256', $response->getContent());
+    }
+
+    /**
+     * Increases a counter every time an item is stored to the cache and then
+     * prunes expired cache entries if a configurable threshold is reached.
+     * This only happens during write operations so cache retrieval is not
+     * slowed down.
+     */
+    private function autoPruneExpiredEntries()
+    {
+        if (0 === $this->options['prune_threshold']) {
+            return;
+        }
+
+        $item = $this->cache->getItem(self::COUNTER_KEY);
+        $counter = (int) $item->get();
+
+        if ($counter > $this->options['prune_threshold']) {
+            $this->prune();
+            $counter = 0;
+        } else {
+            ++$counter;
+        }
+
+        $item->set($counter);
+
+        $this->cache->saveDeferred($item);
     }
 
     /**

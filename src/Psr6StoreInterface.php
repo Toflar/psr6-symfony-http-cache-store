@@ -38,5 +38,5 @@ interface Psr6StoreInterface extends StoreInterface
      * prune expired cache entries from storage if the cache adapter supports
      * it.
      */
-    public function pruneExpiredEntries();
+    public function prune();
 }
