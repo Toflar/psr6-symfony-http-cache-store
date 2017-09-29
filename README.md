@@ -93,7 +93,7 @@ passing an array of `$options` in the constructor:
   **Type**: `string`
   **Default**: `Cache-Tags`
 
-### Cache Tagging
+### Cache tagging
 
 Tag cache entries by adding a response header with the tags as a comma 
 separated value. By default, that header is called `Cache-Tags`, this can be
@@ -103,17 +103,19 @@ To invalidate tags, call the method `Psr6Store::invalidateTags` or use the
 `PurgeTagsListener` from the [FOSHttpCache][3] library to handle tag 
 invalidation requests.
 
-### Pruning Expired Cache Entries
+### Pruning expired cache entries
 
-By default, this cache removes expired entries from the cache after every 500
-cache write operations. You can change the frequency with the `prune_threshold`
+By default, this store removes expired entries from the cache after every `500`
+cache **write** operations. Fetching data does not affect performance.
+You can change the automated pruning frequency with the `prune_threshold`
 configuration setting.
 
 You can also manually trigger pruning by calling the `prune()` method on the
-cache. With this, you could for example implement a cronjob that loads the store
+cache. With this, you could for example implement a cron job that loads the store
 and prunes it at a configured interval, to prevent slowing down random requests
 that were cache misses because they have to wait for the pruning to happen. If you
-have set up a cron job, you should disable pruning by setting the threshold to 0.
+have set up a cron job, you should disable auto pruning by setting the threshold
+to `0`.
 
 ### WARNING
 
