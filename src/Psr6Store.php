@@ -201,7 +201,7 @@ final class Psr6Store implements Psr6StoreInterface
             $response->headers->set('X-Content-Digest', $contentDigest);
 
             if (!$response->headers->has('Transfer-Encoding')) {
-                $response->headers->set('Content-Length', strlen($response->getContent()));
+                $response->headers->set('Content-Length', \strlen($response->getContent()));
             }
         }
 
@@ -394,7 +394,7 @@ final class Psr6Store implements Psr6StoreInterface
     {
         // Strip scheme to treat https and http the same
         $uri = $request->getUri();
-        $uri = substr($uri, strlen($request->getScheme().'://'));
+        $uri = substr($uri, \strlen($request->getScheme().'://'));
 
         return 'md'.hash('sha256', $uri);
     }
@@ -407,7 +407,7 @@ final class Psr6Store implements Psr6StoreInterface
      */
     public function getVaryKey(array $vary, HeaderBag $headerBag)
     {
-        if (0 === count($vary)) {
+        if (0 === \count($vary)) {
             return self::NON_VARYING_KEY;
         }
 
@@ -473,7 +473,7 @@ final class Psr6Store implements Psr6StoreInterface
         $item->set($data);
         $item->expiresAfter($expiresAfter);
 
-        if (0 !== count($tags)) {
+        if (0 !== \count($tags)) {
             $item->tag($tags);
         }
 

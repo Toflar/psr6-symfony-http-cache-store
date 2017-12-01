@@ -165,7 +165,7 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->getCache()->hasItem($contentDigest), 'Response content is stored in cache.');
         $this->assertSame($response->getContent(), $this->getCache()->getItem($contentDigest)->get(), 'Response content is stored in cache.');
         $this->assertSame($contentDigest, $response->headers->get('X-Content-Digest'), 'Content digest is stored in the response header.');
-        $this->assertSame(strlen($response->getContent()), $response->headers->get('Content-Length'), 'Response content length is updated.');
+        $this->assertSame(\strlen($response->getContent()), $response->headers->get('Content-Length'), 'Response content length is updated.');
     }
 
     public function testWriteDoesNotStoreTheResponseContentOfNonOriginalResponse()
