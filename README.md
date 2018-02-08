@@ -67,9 +67,10 @@ For the Symfony 4/Flex structure, you need to adjust your `index.php` like this:
 $kernel = new Kernel($env, $debug);
 $kernel = new HttpCache(
     $kernel,
-    new Psr6Store(['cache_directory' => $kernel->getCacheDir()]), [
-        'debug' => $debug,
-    ]);
+    new Psr6Store(['cache_directory' => $kernel->getCacheDir()]),
+    null,
+    ['debug' => $debug]
+);
 ```
 
 That's it, that's all there is to do. The `Psr6Store` will automatically
