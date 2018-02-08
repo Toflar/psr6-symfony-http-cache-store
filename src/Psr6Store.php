@@ -17,7 +17,6 @@ use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\Cache\PruneableInterface;
-use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
@@ -120,7 +119,7 @@ final class Psr6Store implements Psr6StoreInterface
             }
 
             return new TagAwareAdapter(
-                new FilesystemAdapter('http-cache-tags', 0, $options['cache_directory'])
+                new FilesystemAdapter('http_cache', 0, $options['cache_directory'])
             );
         })->setAllowedTypes('cache', AdapterInterface::class);
 
@@ -167,7 +166,7 @@ final class Psr6Store implements Psr6StoreInterface
             // Otherwise we have to see if Vary headers match
             $varyKeyRequest = $this->getVaryKey(
                 $responseData['vary'],
-                $request->headers
+                $request
             );
 
             if ($varyKeyRequest === $varyKeyResponse) {
@@ -218,7 +217,7 @@ final class Psr6Store implements Psr6StoreInterface
         }
 
         // Add or replace entry with current Vary header key
-        $entries[$this->getVaryKey($response->getVary(), $response->headers)] = [
+        $entries[$this->getVaryKey($response->getVary(), $request)] = [
             'vary' => $response->getVary(),
             'headers' => $headers,
             'status' => $response->getStatusCode(),
@@ -400,12 +399,12 @@ final class Psr6Store implements Psr6StoreInterface
     }
 
     /**
-     * @param array     $vary
-     * @param HeaderBag $headerBag
+     * @param array   $vary
+     * @param Request $request
      *
      * @return string
      */
-    public function getVaryKey(array $vary, HeaderBag $headerBag)
+    public function getVaryKey(array $vary, Request $request)
     {
         if (0 === \count($vary)) {
             return self::NON_VARYING_KEY;
@@ -416,7 +415,7 @@ final class Psr6Store implements Psr6StoreInterface
         $hashData = '';
 
         foreach ($vary as $headerName) {
-            $hashData .= $headerName.':'.$headerBag->get($headerName);
+            $hashData .= $headerName.':'.$request->headers->get($headerName);
         }
 
         return hash('sha256', $hashData);
