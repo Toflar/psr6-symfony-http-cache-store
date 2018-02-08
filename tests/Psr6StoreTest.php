@@ -332,34 +332,36 @@ class Psr6StoreTest extends TestCase
     public function testLookupWithVaryResponse()
     {
         $request = Request::create('https://foobar.com/');
-        $response = new Response('hello world', 200, ['Vary' => 'Foobar', 'Foobar' => 'whatever']);
+        $request->headers->set('Foobar', 'whatever');
+        $response = new Response('hello world', 200, ['Vary' => 'Foobar']);
 
         $this->store->write($request, $response);
 
+        $request = Request::create('https://foobar.com/');
         $result = $this->store->lookup($request);
-
         $this->assertNull($result);
 
         $request = Request::create('https://foobar.com/');
         $request->headers->set('Foobar', 'whatever');
-
         $result = $this->store->lookup($request);
-
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('Foobar', $result->headers->get('Vary'));
-        $this->assertSame('whatever', $result->headers->get('Foobar'));
     }
 
     public function testLookupWithMultipleVaryResponse()
     {
-        $request = Request::create('https://foobar.com/');
-        $response1 = new Response('should be whatever 1', 200, ['Vary' => 'Foobar', 'Foobar' => 'whatever1']);
-        $response2 = new Response('should be whatever 2', 200, ['Vary' => 'Foobar', 'Foobar' => 'whatever2']);
+        $jsonRequest = Request::create('https://foobar.com/');
+        $jsonRequest->headers->set('Accept', 'application/json');
+        $htmlRequest = Request::create('https://foobar.com/');
+        $htmlRequest->headers->set('Accept', 'text/html');
+
+        $jsonResponse = new Response('{}', 200, ['Vary' => 'Accept', 'Content-Type' => 'application/json']);
+        $htmlResponse = new Response('<html></html>', 200, ['Vary' => 'Accept', 'Content-Type' => 'text/html']);
 
         // Fill cache
-        $this->store->write($request, $response1);
-        $this->store->write($request, $response2);
+        $this->store->write($jsonRequest, $jsonResponse);
+        $this->store->write($htmlRequest, $htmlResponse);
 
         // Should return null because no header provided
         $request = Request::create('https://foobar.com/');
@@ -368,27 +370,27 @@ class Psr6StoreTest extends TestCase
 
         // Should return null because header provided but non matching content
         $request = Request::create('https://foobar.com/');
-        $request->headers->set('Foobar', 'whatever3');
+        $request->headers->set('Accept', 'application/xml');
         $result = $this->store->lookup($request);
         $this->assertNull($result);
 
-        // Should return $response1
+        // Should return a JSON response
         $request = Request::create('https://foobar.com/');
-        $request->headers->set('Foobar', 'whatever1');
+        $request->headers->set('Accept', 'application/json');
         $result = $this->store->lookup($request);
         $this->assertSame(200, $result->getStatusCode());
-        $this->assertSame('should be whatever 1', $result->getContent());
-        $this->assertSame('Foobar', $result->headers->get('Vary'));
-        $this->assertSame('whatever1', $result->headers->get('Foobar'));
+        $this->assertSame('{}', $result->getContent());
+        $this->assertSame('Accept', $result->headers->get('Vary'));
+        $this->assertSame('application/json', $result->headers->get('Content-Type'));
 
-        // Should return $response2
+        // Should return an HTML response
         $request = Request::create('https://foobar.com/');
-        $request->headers->set('Foobar', 'whatever2');
+        $request->headers->set('Accept', 'text/html');
         $result = $this->store->lookup($request);
         $this->assertSame(200, $result->getStatusCode());
-        $this->assertSame('should be whatever 2', $result->getContent());
-        $this->assertSame('Foobar', $result->headers->get('Vary'));
-        $this->assertSame('whatever2', $result->headers->get('Foobar'));
+        $this->assertSame('<html></html>', $result->getContent());
+        $this->assertSame('Accept', $result->headers->get('Vary'));
+        $this->assertSame('text/html', $result->headers->get('Content-Type'));
     }
 
     public function testInvalidate()
