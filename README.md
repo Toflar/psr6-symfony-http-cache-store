@@ -35,7 +35,8 @@ $ composer require toflar/psr6-symfony-http-cache-store
 
 ## Configuration
 
-Use the `Psr6Store` by enabling it in your `AppCache` as follows:
+For the Symfony 3 standard edition file structure, use the `Psr6Store` by
+enabling it in your `AppCache` as follows:
 
 ```php
 <?php
@@ -55,6 +56,16 @@ Use the `Psr6Store` by enabling it in your `AppCache` as follows:
         parent::__construct($kernel, $store, $surrogate, $options);
     }
     
+```
+
+For the Symfony 4/Flex structure, you need to adjust your `index.php` like this:
+
+```php
+<?php
+
+    // public/index.php
+    $kernel = new Kernel($env, $debug);
+    $kernel = new HttpCache($kernel, new Psr6Store(['cache_directory' => $kernel->getCacheDir()]));
 ```
 
 That's it, that's all there is to do. The `Psr6Store` will automatically
