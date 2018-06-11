@@ -36,7 +36,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  *
  * @author Yanick Witschi <yanick.witschi@terminal42.ch>
  */
-final class Psr6Store implements Psr6StoreInterface
+class Psr6Store implements Psr6StoreInterface
 {
     const NON_VARYING_KEY = 'non-varying';
     const COUNTER_KEY = 'write-operations-counter';
