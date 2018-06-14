@@ -23,6 +23,10 @@ matrix:
 sudo: false
 
 before_script:
+  - |
+    if [ "$TRAVIS_PHP_VERSION" = "nightly" ]; then
+      COMPOSER_FLAGS="$COMPOSER_FLAGS --ignore-platform-reqs"
+    fi;
   - travis_wait composer update --no-interaction $COMPOSER_FLAGS
 
 script:
