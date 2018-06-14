@@ -6,19 +6,27 @@ matrix:
     - php: 5.6
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
     - php: 7.0
+    - php: 7.0
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
     - php: 7.1
     - php: 7.1
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
+    - php: 7.2
       env: COVERAGE='--coverage-clover build/logs/clover.xml'
     - php: 7.2
-    - php: 7.2
+      env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
+    - php: nightly
+    - php: nightly
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
   fast_finish: true
 
 sudo: false
 
 before_script:
+  - |
+    if [ "$TRAVIS_PHP_VERSION" = "nightly" ]; then
+      COMPOSER_FLAGS="$COMPOSER_FLAGS --ignore-platform-reqs"
+    fi;
   - travis_wait composer update --no-interaction $COMPOSER_FLAGS
 
 script:
@@ -26,4 +34,4 @@ script:
   - php vendor/bin/phpunit $COVERAGE
 
 after_script:
- - if [[ $COVERAGE ]]; then php vendor/bin/coveralls; fi
+ - if [[ $COVERAGE ]]; then php vendor/bin/php-coveralls; fi
