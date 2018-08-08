@@ -231,7 +231,11 @@ class Psr6Store implements Psr6StoreInterface
         // Tags
         $tags = [];
         if ($response->headers->has($this->options['cache_tags_header'])) {
-            $tags = explode(',', $response->headers->get($this->options['cache_tags_header']));
+            foreach ($response->headers->get($this->options['cache_tags_header'], '', false) as $header) {
+                foreach (explode(',', $header) as $tag) {
+                    $tags[] = $tag;
+                }
+            }
         }
 
         // Prune expired entries on file system if needed

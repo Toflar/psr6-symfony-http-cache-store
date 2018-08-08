@@ -230,6 +230,21 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($this->getCache()->getItem($cacheKey)->isHit());
     }
 
+    public function testWriteAddsTagsWithMultipleHeaders()
+    {
+        $request = Request::create('/');
+        $response = new Response('hello world', 200);
+        $response->headers->set('Cache-Tags', ['foobar,other tag', 'some,more', 'tags', 'split,over', 'multiple-headers']);
+
+        $cacheKey = $this->store->getCacheKey($request);
+
+        $this->store->write($request, $response);
+
+        $this->assertTrue($this->getCache()->getItem($cacheKey)->isHit());
+        $this->assertTrue($this->store->invalidateTags(['multiple-headers']));
+        $this->assertFalse($this->getCache()->getItem($cacheKey)->isHit());
+    }
+
     public function testInvalidateTagsThrowsExceptionIfWrongCacheAdapterProvided()
     {
         $this->expectException(\RuntimeException::class);
