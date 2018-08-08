@@ -22,7 +22,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\Factory;
-use Symfony\Component\Lock\Lock;
 use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
@@ -228,6 +227,21 @@ class Psr6StoreTest extends TestCase
 
         $this->assertTrue($this->getCache()->getItem($cacheKey)->isHit());
         $this->assertTrue($this->store->invalidateTags(['foobar']));
+        $this->assertFalse($this->getCache()->getItem($cacheKey)->isHit());
+    }
+
+    public function testWriteAddsTagsWithMultipleHeaders()
+    {
+        $request = Request::create('/');
+        $response = new Response('hello world', 200);
+        $response->headers->set('Cache-Tags', ['foobar,other tag', 'some,more', 'tags', 'split,over', 'multiple-headers']);
+
+        $cacheKey = $this->store->getCacheKey($request);
+
+        $this->store->write($request, $response);
+
+        $this->assertTrue($this->getCache()->getItem($cacheKey)->isHit());
+        $this->assertTrue($this->store->invalidateTags(['multiple-headers']));
         $this->assertFalse($this->getCache()->getItem($cacheKey)->isHit());
     }
 

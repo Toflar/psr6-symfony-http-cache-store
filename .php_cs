@@ -35,6 +35,7 @@ return PhpCsFixer\Config::create()
             'psr4' => true,
             'strict_comparison' => true,
             'strict_param' => true,
+            'native_function_invocation' => ['include' => ['@compiler_optimized']],
         )
     )
     ->setFinder(
