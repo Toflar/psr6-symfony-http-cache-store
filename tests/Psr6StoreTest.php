@@ -22,7 +22,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\Factory;
-use Symfony\Component\Lock\Lock;
 use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
