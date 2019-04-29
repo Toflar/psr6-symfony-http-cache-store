@@ -119,7 +119,7 @@ class Psr6Store implements Psr6StoreInterface
             }
 
             return new TagAwareAdapter(
-                new FilesystemAdapter('http_cache', 0, $options['cache_directory'])
+                new FilesystemAdapter('', 0, $options['cache_directory'])
             );
         })->setAllowedTypes('cache', AdapterInterface::class);
 
