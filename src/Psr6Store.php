@@ -14,6 +14,7 @@ namespace Toflar\Psr6HttpCacheStore;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\Cache\PruneableInterface;
@@ -120,6 +121,11 @@ class Psr6Store implements Psr6StoreInterface
         $resolver->setDefault('cache', function (Options $options) {
             if (!isset($options['cache_directory'])) {
                 throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
+            }
+
+            // As of Symfony 4.3+ we can use the optimized FilesystemTagAwareAdapter
+            if (class_exists(FilesystemTagAwareAdapter::class)) {
+                return new FilesystemTagAwareAdapter('', 0, $options['cache_directory']);
             }
 
             return new TagAwareAdapter(
