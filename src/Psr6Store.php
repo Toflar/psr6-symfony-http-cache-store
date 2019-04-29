@@ -72,7 +72,11 @@ class Psr6Store implements Psr6StoreInterface
      *                      adapter and lock factory.
      *
      * - cache:             Explicitly specify the cache adapter you want to
-     *                      use. Make sure that lock and cache have the same
+     *                      use. Note that if you want to make use of cache
+     *                      tagging, this cache must implement the
+     *                      Symfony\Component\Cache\Adapter\TagAwareAdapterInterface
+     *
+     *                      Make sure that lock and cache have the same
      *                      scope. *Read the warning in the README!*
      *
      *                      Type: Symfony\Component\Cache\Adapter\AdapterInterface
