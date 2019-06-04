@@ -19,11 +19,11 @@ that…
 * …instead of re-implementing locking and caching mechanisms again, uses the well
 tested Symfony Cache and Lock components, both with the local filesystem adapters
 by default.
-* …thanks to the `TagAwareAdapter` of the Cache component, supports tag based cache
-invalidation.
+* …thanks to the `TagAwareAdapterInterface` of the Cache component, supports tag
+based cache invalidation.
 * …thanks to the `PrunableInterface` of the Cache component, supports auto-pruning
 of expired entries on the filesystem trying to prevent flooding the filesystem.
-* …allows you to use a different PSR-6 cache adapters as well as a differenent 
+* …allows you to use a different PSR-6 cache adapters as well as a different 
 lock adapter than the local filesystem ones.
  However, **be careful about choosing the right adapters**, see warning below.
 
@@ -86,8 +86,11 @@ passing an array of `$options` in the constructor:
 
   **Type**: `string`
 
-* **cache**: Explicitly specify the cache adapter you want to use. Make sure
-  that `lock` and `cache` have the same scope. *See warning below!*
+* **cache**: Explicitly specify the cache adapter you want to use.
+
+  Note that if you want to make use of cache tagging, this cache must
+  implement the `Symfony\Component\Cache\Adapter\TagAwareAdapterInterface`
+  Make sure that `lock` and `cache` have the same scope. *See warning below!*
 
   **Type**: `Symfony\Component\Cache\Adapter\AdapterInterface`
   **Default**: `FilesystemAdapter` instance with `cache_directory`

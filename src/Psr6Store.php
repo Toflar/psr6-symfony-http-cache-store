@@ -14,6 +14,7 @@ namespace Toflar\Psr6HttpCacheStore;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\Cache\PruneableInterface;
@@ -72,7 +73,11 @@ class Psr6Store implements Psr6StoreInterface
      *                      adapter and lock factory.
      *
      * - cache:             Explicitly specify the cache adapter you want to
-     *                      use. Make sure that lock and cache have the same
+     *                      use. Note that if you want to make use of cache
+     *                      tagging, this cache must implement the
+     *                      Symfony\Component\Cache\Adapter\TagAwareAdapterInterface
+     *
+     *                      Make sure that lock and cache have the same
      *                      scope. *Read the warning in the README!*
      *
      *                      Type: Symfony\Component\Cache\Adapter\AdapterInterface
@@ -118,8 +123,13 @@ class Psr6Store implements Psr6StoreInterface
                 throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
             }
 
+            // As of Symfony 4.3+ we can use the optimized FilesystemTagAwareAdapter
+            if (class_exists(FilesystemTagAwareAdapter::class)) {
+                return new FilesystemTagAwareAdapter('', 0, $options['cache_directory']);
+            }
+
             return new TagAwareAdapter(
-                new FilesystemAdapter('http_cache', 0, $options['cache_directory'])
+                new FilesystemAdapter('', 0, $options['cache_directory'])
             );
         })->setAllowedTypes('cache', AdapterInterface::class);
 
