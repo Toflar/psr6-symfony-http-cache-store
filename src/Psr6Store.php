@@ -424,12 +424,25 @@ class Psr6Store implements Psr6StoreInterface
             return self::NON_VARYING_KEY;
         }
 
+        // Normalize
+        $vary = array_map('strtolower', $vary);
         sort($vary);
 
         $hashData = '';
 
         foreach ($vary as $headerName) {
+            if ('cookie' === $headerName) {
+                continue;
+            }
+
             $hashData .= $headerName.':'.$request->headers->get($headerName);
+        }
+
+        if (\in_array('cookie', $vary, true)) {
+            $hashData .= 'cookies:';
+            foreach ($request->cookies->all() as $k => $v) {
+                $hashData .= $k.'='.$v;
+            }
         }
 
         return hash('sha256', $hashData);
