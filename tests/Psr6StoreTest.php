@@ -18,6 +18,7 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
@@ -332,6 +333,26 @@ class Psr6StoreTest extends TestCase
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
+    }
+
+    public function testLookupWithVaryOnCookies()
+    {
+        // Cookies match
+        $request = Request::create('https://foobar.com/', 'GET', [], ['Foo' => 'Bar'], [], ['HTTP_COOKIE' => 'Foo=Bar']);
+        $response = new Response('hello world', 200, ['Vary' => 'Cookie']);
+        $response->headers->setCookie(Cookie::create('Foo', 'Bar'));
+
+        $this->store->write($request, $response);
+
+        $result = $this->store->lookup($request);
+        $this->assertInstanceOf(Response::class, $result);
+
+        // Cookies do not match (manually removed on request)
+        $request = Request::create('https://foobar.com/', 'GET', [], ['Foo' => 'Bar'], [], ['HTTP_COOKIE' => 'Foo=Bar']);
+        $request->cookies->remove('Foo');
+
+        $result = $this->store->lookup($request);
+        $this->assertNull($result);
     }
 
     public function testLookupWithEmptyCache()
