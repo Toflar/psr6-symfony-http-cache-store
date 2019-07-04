@@ -340,7 +340,7 @@ class Psr6StoreTest extends TestCase
         // Cookies match
         $request = Request::create('https://foobar.com/', 'GET', [], ['Foo' => 'Bar'], [], ['HTTP_COOKIE' => 'Foo=Bar']);
         $response = new Response('hello world', 200, ['Vary' => 'Cookie']);
-        $response->headers->setCookie(Cookie::create('Foo', 'Bar'));
+        $response->headers->setCookie(new Cookie('Foo', 'Bar'));
 
         $this->store->write($request, $response);
 
