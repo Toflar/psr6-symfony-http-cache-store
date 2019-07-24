@@ -135,7 +135,7 @@ class Psr6Store implements Psr6StoreInterface
 
         $resolver->setDefault('lock_factory', function (Options $options) {
             if (!isset($options['cache_directory'])) {
-                throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
+                throw new MissingOptionsException('The cache_directory option is required unless you set the lock_factory explicitly as by default locks are also stored in the configured cache_directory.');
             }
 
             return new Factory(

@@ -44,6 +44,18 @@ class Psr6StoreTest extends TestCase
         $this->store->cleanup();
     }
 
+    public function testCustomCacheWithoutLockFactory()
+    {
+        $this->expectException(MissingOptionsException::class);
+        $this->expectExceptionMessage('The cache_directory option is required unless you set the lock_factory explicitly as by default locks are also stored in the configured cache_directory.');
+
+        $cache = $this->createMock(TagAwareAdapterInterface::class);
+
+        new Psr6Store([
+            'cache' => $cache,
+        ]);
+    }
+
     public function testCustomCacheAndLockFactory()
     {
         $cache = $this->createMock(TagAwareAdapterInterface::class);
