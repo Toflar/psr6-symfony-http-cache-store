@@ -395,7 +395,14 @@ class Psr6Store implements Psr6StoreInterface
             return;
         }
 
-        $this->cache->prune();
+        // Make sure we do not have multiple pruning processes running
+        $lock = $this->lockFactory->createLock('prune-lock');
+
+        if ($lock->acquire()) {
+            $this->cache->prune();
+
+            $lock->release();
+        }
     }
 
     /**

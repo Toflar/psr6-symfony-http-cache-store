@@ -506,10 +506,27 @@ class Psr6StoreTest extends TestCase
             ->expects($this->exactly(3))
             ->method('prune');
 
+        $lock = $this->createMock(LockInterface::class);
+        $lock
+            ->expects($this->exactly(3))
+            ->method('acquire')
+            ->willReturn(true);
+        $lock
+            ->expects($this->exactly(3))
+            ->method('release')
+            ->willReturn(true);
+
+        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory
+            ->expects($this->any())
+            ->method('createLock')
+            ->with('prune-lock')
+            ->willReturn($lock);
+
         $store = new Psr6Store([
-            'cache_directory' => sys_get_temp_dir(),
             'cache' => $cache,
             'prune_threshold' => 5,
+            'lock_factory' => $lockFactory,
         ]);
 
         foreach (range(1, 21) as $entry) {
@@ -538,6 +555,47 @@ class Psr6StoreTest extends TestCase
             'cache_directory' => sys_get_temp_dir(),
             'cache' => $cache,
             'prune_threshold' => 0,
+        ]);
+
+        foreach (range(1, 21) as $entry) {
+            $request = Request::create('https://foobar.com/'.$entry);
+            $response = new Response('hello world', 200);
+
+            $store->write($request, $response);
+        }
+
+        $store->cleanup();
+    }
+
+    public function testAutoPruneIsSkippedIfPruningIsAlreadyInProgress()
+    {
+        $innerCache = new ArrayAdapter();
+        $cache = $this->getMockBuilder(TagAwareAdapter::class)
+            ->setConstructorArgs([$innerCache])
+            ->setMethods(['prune'])
+            ->getMock();
+
+        $cache
+            ->expects($this->never())
+            ->method('prune');
+
+        $lock = $this->createMock(LockInterface::class);
+        $lock
+            ->expects($this->exactly(3))
+            ->method('acquire')
+            ->willReturn(false);
+
+        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory
+            ->expects($this->any())
+            ->method('createLock')
+            ->with('prune-lock')
+            ->willReturn($lock);
+
+        $store = new Psr6Store([
+            'cache' => $cache,
+            'prune_threshold' => 5,
+            'lock_factory' => $lockFactory,
         ]);
 
         foreach (range(1, 21) as $entry) {
