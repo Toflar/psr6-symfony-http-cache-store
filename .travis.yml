@@ -10,8 +10,11 @@ matrix:
     - php: 7.1
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
     - php: 7.2
-      env: COVERAGE='--coverage-clover build/logs/clover.xml'
     - php: 7.2
+      env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
+    - php: 7.3
+      env: COVERAGE='--coverage-clover build/logs/clover.xml'
+    - php: 7.3
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
     - php: 7.4snapshot
     - php: 7.4snapshot
