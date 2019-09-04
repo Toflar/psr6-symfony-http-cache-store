@@ -18,6 +18,9 @@ use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\Cache\PruneableInterface;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
+use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
@@ -203,7 +206,11 @@ class Psr6Store implements Psr6StoreInterface
         if (!$response->headers->has('X-Content-Digest')) {
             $contentDigest = $this->generateContentDigest($response);
 
-            if (false === $this->saveDeferred($contentDigest, $response->getContent())) {
+            $cacheValue = $this->isBinaryFileResponseContentDigest($contentDigest) ?
+                $response->getFile()->getPathname() :
+                $response->getContent();
+
+            if (false === $this->saveDeferred($contentDigest, $cacheValue)) {
                 throw new \RuntimeException('Unable to store the entity.');
             }
 
@@ -462,7 +469,23 @@ class Psr6Store implements Psr6StoreInterface
      */
     public function generateContentDigest(Response $response)
     {
+        if ($response instanceof BinaryFileResponse) {
+            return 'bf'.hash_file('sha256', $response->getFile()->getPathname());
+        }
+
         return 'en'.hash('sha256', $response->getContent());
+    }
+
+    /**
+     * Test whether a given digest identifies a BinaryFileResponse.
+     *
+     * @param string $digest
+     *
+     * @return bool
+     */
+    private function isBinaryFileResponseContentDigest($digest)
+    {
+        return 'bf' === substr($digest, 0, 2);
     }
 
     /**
@@ -522,20 +545,34 @@ class Psr6Store implements Psr6StoreInterface
      */
     private function restoreResponse(array $cacheData)
     {
-        $body = null;
-
         if (isset($cacheData['headers']['x-content-digest'][0])) {
             $item = $this->cache->getItem($cacheData['headers']['x-content-digest'][0]);
             if ($item->isHit()) {
-                $body = $item->get();
+                $value = $item->get();
+
+                if ($this->isBinaryFileResponseContentDigest($cacheData['headers']['x-content-digest'][0])) {
+                    try {
+                        $file = new File($value);
+                    } catch (FileNotFoundException $e) {
+                        return null;
+                    }
+
+                    return new BinaryFileResponse(
+                        $file,
+                        $cacheData['status'],
+                        $cacheData['headers']
+                    );
+                }
+
+                return new Response(
+                        $value,
+                        $cacheData['status'],
+                        $cacheData['headers']
+                    );
             }
         }
 
-        return new Response(
-            $body,
-            $cacheData['status'],
-            $cacheData['headers']
-        );
+        return null;
     }
 
     /**

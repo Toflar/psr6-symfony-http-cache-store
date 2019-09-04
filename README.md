@@ -26,6 +26,7 @@ of expired entries on the filesystem trying to prevent flooding the filesystem.
 * …allows you to use a different PSR-6 cache adapters as well as a different 
 lock adapter than the local filesystem ones.
  However, **be careful about choosing the right adapters**, see warning below.
+* …supports `BinaryFileResponse` instances.
 
 ## Installation
 
@@ -111,6 +112,14 @@ passing an array of `$options` in the constructor:
 
   **Type**: `string`
   **Default**: `Cache-Tags`
+  
+### Caching `BinaryFileResponse` instances
+
+This cache implementation allows to cache `BinaryFileResponse` instances but the files are not actually copied to
+the cache directory. It will just try to fetch the original file and if that does not exist anymore, the store returns
+`null`, causing HttpCache to deal with it as a cache miss and continue normally.
+It is ideal for use cases such as caching `/favicon.ico` requests where you would like to prevent the application from
+being started and thus deliver the response from HttpCache.
 
 ### Cache tagging
 

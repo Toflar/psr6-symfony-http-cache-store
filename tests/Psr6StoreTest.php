@@ -18,7 +18,9 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
@@ -105,7 +107,7 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->store->isLocked($request), 'Request is locked.');
     }
 
-    public function testUnlockReturnsFalseIfLockWasNotAquired()
+    public function testUnlockReturnsFalseIfLockWasNotAcquired()
     {
         $request = Request::create('/');
         $this->assertFalse($this->store->unlock($request), 'Request is not locked.');
@@ -130,7 +132,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($this->store->isLocked($request), 'Request is no longer locked.');
     }
 
-    public function testSameLockCanBeAquiredAgain()
+    public function testSameLockCanBeAcquiredAgain()
     {
         $request = Request::create('/');
 
@@ -177,7 +179,7 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->getCache()->hasItem($contentDigest), 'Response content is stored in cache.');
         $this->assertSame($response->getContent(), $this->getCache()->getItem($contentDigest)->get(), 'Response content is stored in cache.');
         $this->assertSame($contentDigest, $response->headers->get('X-Content-Digest'), 'Content digest is stored in the response header.');
-        $this->assertSame(\strlen($response->getContent()), $response->headers->get('Content-Length'), 'Response content length is updated.');
+        $this->assertSame(\strlen($response->getContent()), (int) $response->headers->get('Content-Length'), 'Response content length is updated.');
     }
 
     public function testWriteDoesNotStoreTheResponseContentOfNonOriginalResponse()
@@ -345,6 +347,41 @@ class Psr6StoreTest extends TestCase
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
+    }
+
+    public function testRegularLookupWithBinaryResponse()
+    {
+        $request = Request::create('https://foobar.com/');
+        $response = new BinaryFileResponse(__DIR__.'/Fixtures/favicon.ico');
+        $response->headers->set('Foobar', 'whatever');
+
+        $this->store->write($request, $response);
+
+        $result = $this->store->lookup($request);
+
+        $this->assertInstanceOf(BinaryFileResponse::class, $result);
+        $this->assertSame(200, $result->getStatusCode());
+        $this->assertSame(__DIR__.'/Fixtures/favicon.ico', $result->getFile()->getPathname());
+        $this->assertSame('whatever', $result->headers->get('Foobar'));
+    }
+
+    public function testRegularLookupWithRemovedBinaryResponse()
+    {
+        $request = Request::create('https://foobar.com/');
+        $file = new File(__DIR__.'/Fixtures/favicon.ico');
+        $response = new BinaryFileResponse($file);
+        $response->headers->set('Foobar', 'whatever');
+
+        $this->store->write($request, $response);
+
+        // Now move (same as remove) the file somewhere else
+        $movedFile = $file->move(__DIR__.'/Fixtures', 'favicon_bu.ico');
+
+        $result = $this->store->lookup($request);
+        $this->assertNull($result);
+
+        // Move back for other tests
+        $movedFile->move(__DIR__.'/Fixtures', 'favicon.ico');
     }
 
     public function testLookupWithVaryOnCookies()
