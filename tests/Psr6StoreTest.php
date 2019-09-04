@@ -105,7 +105,7 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->store->isLocked($request), 'Request is locked.');
     }
 
-    public function testUnlockReturnsFalseIfLockWasNotAquired()
+    public function testUnlockReturnsFalseIfLockWasNotAcquired()
     {
         $request = Request::create('/');
         $this->assertFalse($this->store->unlock($request), 'Request is not locked.');
@@ -130,7 +130,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($this->store->isLocked($request), 'Request is no longer locked.');
     }
 
-    public function testSameLockCanBeAquiredAgain()
+    public function testSameLockCanBeAcquiredAgain()
     {
         $request = Request::create('/');
 
