@@ -732,9 +732,11 @@ class Psr6StoreTest extends TestCase
     private function createFactoryMock()
     {
         if (class_exists(LockFactory::class)) {
+            // Symfony >= 4.4
             return $this->createMock(LockFactory::class);
         }
 
+        // Symfony < 4.4
         return $this->createMock(Factory::class);
     }
 }

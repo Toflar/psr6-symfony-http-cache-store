@@ -146,9 +146,11 @@ class Psr6Store implements Psr6StoreInterface
             $defaultLockStore = $this->getDefaultLockStore($options['cache_directory']);
 
             if (class_exists(LockFactory::class)) {
+                // Symfony >= 4.4
                 return new LockFactory($defaultLockStore);
             }
 
+            // Symfony < 4.4
             return new Factory($defaultLockStore);
         })->setAllowedTypes('lock_factory', [Factory::class, LockFactory::class]);
 
@@ -254,7 +256,14 @@ class Psr6Store implements Psr6StoreInterface
         // Tags
         $tags = [];
         if ($response->headers->has($this->options['cache_tags_header'])) {
-            foreach ($response->headers->get($this->options['cache_tags_header'], '', false) as $header) {
+            // Symfony < 4.4
+            $headers = $response->headers->get($this->options['cache_tags_header'], '', false);
+            if (is_string($headers)) {
+                // Symfony >= 4.4
+                $headers = $response->headers->all($this->options['cache_tags_header']);
+            }
+
+            foreach ($headers as $header) {
                 foreach (explode(',', $header) as $tag) {
                     $tags[] = $tag;
                 }
