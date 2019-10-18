@@ -25,6 +25,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\Factory;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
@@ -63,7 +64,7 @@ class Psr6StoreTest extends TestCase
         $cache = $this->createMock(TagAwareAdapterInterface::class);
         $cache->expects($this->once())
             ->method('deleteItem');
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
 
         $store = new Psr6Store([
             'cache' => $cache,
@@ -553,7 +554,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willReturn(true);
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
@@ -622,7 +623,7 @@ class Psr6StoreTest extends TestCase
             ->method('acquire')
             ->willReturn(false);
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
@@ -665,7 +666,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willThrowException(new LockReleasingException());
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->once())
             ->method('createLock')
@@ -690,7 +691,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willThrowException(new LockReleasingException());
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->once())
             ->method('createLock')
@@ -726,5 +727,14 @@ class Psr6StoreTest extends TestCase
         $cache->setAccessible(true);
 
         return $cache->getValue($this->store);
+    }
+
+    private function createFactoryMock()
+    {
+        if (class_exists(LockFactory::class)) {
+            return $this->createMock(LockFactory::class);
+        }
+
+        return $this->createMock(Factory::class);
     }
 }
