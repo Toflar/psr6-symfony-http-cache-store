@@ -18,8 +18,12 @@ matrix:
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
     - php: 7.4snapshot
     - php: 7.4snapshot
+      env: COMPOSER_DEV_STABILITY=true
+    - php: 7.4snapshot
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
     - php: nightly
+    - php: nightly
+      env: COMPOSER_DEV_STABILITY=true
     - php: nightly
       env: COMPOSER_FLAGS='--prefer-lowest --prefer-stable'
   allow_failures:
@@ -31,6 +35,7 @@ before_script:
     if [ "$TRAVIS_PHP_VERSION" = "nightly" ]; then
       COMPOSER_FLAGS="$COMPOSER_FLAGS --ignore-platform-reqs"
     fi;
+  - if [[ $COMPOSER_DEV_STABILITY = true ]]; then composer config minimum-stability dev ; fi
   - travis_wait composer update --no-interaction $COMPOSER_FLAGS
 
 script:
