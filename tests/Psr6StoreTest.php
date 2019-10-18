@@ -13,6 +13,7 @@ namespace Toflar\Psr6HttpCacheStore;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
+use Symfony\Bridge\PhpUnit\SetUpTearDownTrait;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
@@ -31,17 +32,19 @@ use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
 class Psr6StoreTest extends TestCase
 {
+    use SetUpTearDownTrait;
+
     /**
      * @var Psr6Store
      */
     private $store;
 
-    protected function setUp()
+    protected function doSetUp()
     {
         $this->store = new Psr6Store(['cache_directory' => sys_get_temp_dir()]);
     }
 
-    protected function tearDown()
+    protected function doTearDown()
     {
         $this->getCache()->clear();
         $this->store->cleanup();
@@ -226,7 +229,7 @@ class Psr6StoreTest extends TestCase
 
         $entries = $cacheItem->get();
 
-        $this->assertInternalType('array', $entries, 'Entries are stored in cache.');
+        $this->assertTrue(is_array($entries), 'Entries are stored in cache.');
         $this->assertCount(1, $entries, 'One entry is stored.');
         $this->assertSame($entries[Psr6Store::NON_VARYING_KEY]['headers'], array_diff_key($response->headers->all(), ['age' => []]), 'Response headers are stored with no age header.');
     }
@@ -390,7 +393,7 @@ class Psr6StoreTest extends TestCase
         // Cookies match
         $request = Request::create('https://foobar.com/', 'GET', [], ['Foo' => 'Bar'], [], ['HTTP_COOKIE' => 'Foo=Bar']);
         $response = new Response('hello world', 200, ['Vary' => 'Cookie']);
-        $response->headers->setCookie(new Cookie('Foo', 'Bar'));
+        $response->headers->setCookie(new Cookie('Foo', 'Bar', 0, '/', false, null, true, false, null));
 
         $this->store->write($request, $response);
 
