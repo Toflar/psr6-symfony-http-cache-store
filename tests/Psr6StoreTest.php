@@ -39,17 +39,6 @@ class Psr6StoreTest extends TestCase
      */
     private $store;
 
-    protected function doSetUp()
-    {
-        $this->store = new Psr6Store(['cache_directory' => sys_get_temp_dir()]);
-    }
-
-    protected function doTearDown()
-    {
-        $this->getCache()->clear();
-        $this->store->cleanup();
-    }
-
     public function testCustomCacheWithoutLockFactory()
     {
         $this->expectException(MissingOptionsException::class);
@@ -229,7 +218,7 @@ class Psr6StoreTest extends TestCase
 
         $entries = $cacheItem->get();
 
-        $this->assertTrue(is_array($entries), 'Entries are stored in cache.');
+        $this->assertTrue(\is_array($entries), 'Entries are stored in cache.');
         $this->assertCount(1, $entries, 'One entry is stored.');
         $this->assertSame($entries[Psr6Store::NON_VARYING_KEY]['headers'], array_diff_key($response->headers->all(), ['age' => []]), 'Response headers are stored with no age header.');
     }
@@ -712,6 +701,17 @@ class Psr6StoreTest extends TestCase
         // This test will fail if an exception is thrown, otherwise we mark it
         // as passed.
         $this->addToAssertionCount(1);
+    }
+
+    protected function doSetUp()
+    {
+        $this->store = new Psr6Store(['cache_directory' => sys_get_temp_dir()]);
+    }
+
+    protected function doTearDown()
+    {
+        $this->getCache()->clear();
+        $this->store->cleanup();
     }
 
     /**

@@ -258,7 +258,7 @@ class Psr6Store implements Psr6StoreInterface
         if ($response->headers->has($this->options['cache_tags_header'])) {
             // Symfony < 4.4
             $headers = $response->headers->get($this->options['cache_tags_header'], '', false);
-            if (is_string($headers)) {
+            if (\is_string($headers)) {
                 // Symfony >= 4.4
                 $headers = $response->headers->all($this->options['cache_tags_header']);
             }
