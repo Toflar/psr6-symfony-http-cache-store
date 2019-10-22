@@ -19,7 +19,7 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^2.12",
-        "symfony/phpunit-bridge": "dev-master",
+        "symfony/phpunit-bridge": "^4.3.5",
         "php-coveralls/php-coveralls": "^2.1"
     },
     "autoload": {

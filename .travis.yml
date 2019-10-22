@@ -40,7 +40,7 @@ before_script:
 
 script:
   - if [[ $COVERAGE ]]; then mkdir -p build/logs; fi
-  - php vendor/bin/simple-phpunit $COVERAGE
+  - php bin/phpunit $COVERAGE
 
 after_script:
  - if [[ $COVERAGE ]]; then php vendor/bin/php-coveralls; fi

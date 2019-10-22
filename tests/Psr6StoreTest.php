@@ -13,7 +13,6 @@ namespace Toflar\Psr6HttpCacheStore;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
-use Symfony\Bridge\PhpUnit\SetUpTearDownTrait;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
@@ -32,12 +31,21 @@ use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
 class Psr6StoreTest extends TestCase
 {
-    use SetUpTearDownTrait;
-
     /**
      * @var Psr6Store
      */
     private $store;
+
+    protected function setUp()
+    {
+        $this->store = new Psr6Store(['cache_directory' => sys_get_temp_dir()]);
+    }
+
+    protected function tearDown()
+    {
+        $this->getCache()->clear();
+        $this->store->cleanup();
+    }
 
     public function testCustomCacheWithoutLockFactory()
     {
@@ -701,17 +709,6 @@ class Psr6StoreTest extends TestCase
         // This test will fail if an exception is thrown, otherwise we mark it
         // as passed.
         $this->addToAssertionCount(1);
-    }
-
-    protected function doSetUp()
-    {
-        $this->store = new Psr6Store(['cache_directory' => sys_get_temp_dir()]);
-    }
-
-    protected function doTearDown()
-    {
-        $this->getCache()->clear();
-        $this->store->cleanup();
     }
 
     /**
