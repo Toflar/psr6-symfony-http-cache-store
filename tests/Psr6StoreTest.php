@@ -25,6 +25,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\Factory;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
@@ -63,7 +64,7 @@ class Psr6StoreTest extends TestCase
         $cache = $this->createMock(TagAwareAdapterInterface::class);
         $cache->expects($this->once())
             ->method('deleteItem');
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
 
         $store = new Psr6Store([
             'cache' => $cache,
@@ -225,7 +226,7 @@ class Psr6StoreTest extends TestCase
 
         $entries = $cacheItem->get();
 
-        $this->assertInternalType('array', $entries, 'Entries are stored in cache.');
+        $this->assertTrue(\is_array($entries), 'Entries are stored in cache.');
         $this->assertCount(1, $entries, 'One entry is stored.');
         $this->assertSame($entries[Psr6Store::NON_VARYING_KEY]['headers'], array_diff_key($response->headers->all(), ['age' => []]), 'Response headers are stored with no age header.');
     }
@@ -389,7 +390,7 @@ class Psr6StoreTest extends TestCase
         // Cookies match
         $request = Request::create('https://foobar.com/', 'GET', [], ['Foo' => 'Bar'], [], ['HTTP_COOKIE' => 'Foo=Bar']);
         $response = new Response('hello world', 200, ['Vary' => 'Cookie']);
-        $response->headers->setCookie(new Cookie('Foo', 'Bar'));
+        $response->headers->setCookie(new Cookie('Foo', 'Bar', 0, '/', false, null, true, false, null));
 
         $this->store->write($request, $response);
 
@@ -553,7 +554,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willReturn(true);
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
@@ -622,7 +623,7 @@ class Psr6StoreTest extends TestCase
             ->method('acquire')
             ->willReturn(false);
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
@@ -665,7 +666,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willThrowException(new LockReleasingException());
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->once())
             ->method('createLock')
@@ -690,7 +691,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willThrowException(new LockReleasingException());
 
-        $lockFactory = $this->createMock(Factory::class);
+        $lockFactory = $this->createFactoryMock();
         $lockFactory
             ->expects($this->once())
             ->method('createLock')
@@ -726,5 +727,16 @@ class Psr6StoreTest extends TestCase
         $cache->setAccessible(true);
 
         return $cache->getValue($this->store);
+    }
+
+    private function createFactoryMock()
+    {
+        if (class_exists(LockFactory::class)) {
+            // Symfony >= 4.4
+            return $this->createMock(LockFactory::class);
+        }
+
+        // Symfony < 4.4
+        return $this->createMock(Factory::class);
     }
 }
