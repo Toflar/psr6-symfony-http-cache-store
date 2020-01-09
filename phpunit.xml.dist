@@ -11,7 +11,7 @@
          bootstrap="vendor/autoload.php"
 >
     <php>
-        <env name="SYMFONY_DEPRECATIONS_HELPER" value="weak" />
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[self]=0" />
     </php>
     <testsuites>
         <testsuite name="PSR-6 HttpCache Store Test Suite">

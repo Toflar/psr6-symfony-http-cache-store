@@ -107,8 +107,6 @@ class Psr6Store implements Psr6StoreInterface
      *
      *                      Type: string
      *                      Default: Cache-Tags
-     *
-     * @param array $options
      */
     public function __construct(array $options = [])
     {
@@ -256,12 +254,10 @@ class Psr6Store implements Psr6StoreInterface
         // Tags
         $tags = [];
         if ($response->headers->has($this->options['cache_tags_header'])) {
-            // Symfony < 4.4
-            $headers = $response->headers->get($this->options['cache_tags_header'], '', false);
-            if (\is_string($headers)) {
-                // Symfony >= 4.4
-                $headers = $response->headers->all($this->options['cache_tags_header']);
-            }
+            // Compatibility with Symfony 3+
+            $allHeaders = $response->headers->all();
+            $key = str_replace('_', '-', strtolower($this->options['cache_tags_header']));
+            $headers = isset($allHeaders[$key]) ? $allHeaders[$key] : [];
 
             foreach ($headers as $header) {
                 foreach (explode(',', $header) as $tag) {
@@ -428,8 +424,6 @@ class Psr6Store implements Psr6StoreInterface
     }
 
     /**
-     * @param Request $request
-     *
      * @return string
      */
     public function getCacheKey(Request $request)
@@ -442,9 +436,6 @@ class Psr6Store implements Psr6StoreInterface
     }
 
     /**
-     * @param array   $vary
-     * @param Request $request
-     *
      * @return string
      */
     public function getVaryKey(array $vary, Request $request)
@@ -478,8 +469,6 @@ class Psr6Store implements Psr6StoreInterface
     }
 
     /**
-     * @param Response $response
-     *
      * @return string
      */
     public function generateContentDigest(Response $response)
