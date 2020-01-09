@@ -107,8 +107,6 @@ class Psr6Store implements Psr6StoreInterface
      *
      *                      Type: string
      *                      Default: Cache-Tags
-     *
-     * @param array $options
      */
     public function __construct(array $options = [])
     {
@@ -428,8 +426,6 @@ class Psr6Store implements Psr6StoreInterface
     }
 
     /**
-     * @param Request $request
-     *
      * @return string
      */
     public function getCacheKey(Request $request)
@@ -442,9 +438,6 @@ class Psr6Store implements Psr6StoreInterface
     }
 
     /**
-     * @param array   $vary
-     * @param Request $request
-     *
      * @return string
      */
     public function getVaryKey(array $vary, Request $request)
@@ -478,8 +471,6 @@ class Psr6Store implements Psr6StoreInterface
     }
 
     /**
-     * @param Response $response
-     *
      * @return string
      */
     public function generateContentDigest(Response $response)
