@@ -42,7 +42,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  *
  * @author Yanick Witschi <yanick.witschi@terminal42.ch>
  */
-class Psr6Store implements Psr6StoreInterface
+class Psr6Store implements Psr6StoreInterface, ClearableInterface
 {
     const NON_VARYING_KEY = 'non-varying';
     const COUNTER_KEY = 'write-operations-counter';
