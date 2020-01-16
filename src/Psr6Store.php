@@ -424,6 +424,21 @@ class Psr6Store implements Psr6StoreInterface
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function clear()
+    {
+        // Make sure we do not have multiple pruning processes running
+        $lock = $this->lockFactory->createLock('clear-lock');
+
+        if ($lock->acquire()) {
+            $this->cache->clear();
+
+            $lock->release();
+        }
+    }
+
+    /**
      * @return string
      */
     public function getCacheKey(Request $request)
