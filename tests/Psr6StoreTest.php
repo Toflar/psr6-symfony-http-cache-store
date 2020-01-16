@@ -498,20 +498,58 @@ class Psr6StoreTest extends TestCase
 
     public function testPurge()
     {
-        $request = Request::create('https://foobar.com/');
-        $response = new Response('hello world', 200);
-        $response->headers->set('Foobar', 'whatever');
+        // Request 1
+        $request1 = Request::create('https://foobar.com/');
+        $response1 = new Response('hello world', 200);
 
-        $this->store->write($request, $response);
-        $cacheKey = $this->store->getCacheKey($request);
+        // Request 2
+        $request2 = Request::create('https://foobar.com/foobar');
+        $response2 = new Response('hello world', 200);
 
-        $cacheItem = $this->getCache()->getItem($cacheKey);
-        $this->assertTrue($cacheItem->isHit());
+        $this->store->write($request1, $response1);
+        $this->store->write($request2, $response2);
+        $cacheKey1 = $this->store->getCacheKey($request1);
+        $cacheKey2 = $this->store->getCacheKey($request2);
+
+        $cacheItem1 = $this->getCache()->getItem($cacheKey1);
+        $cacheItem2 = $this->getCache()->getItem($cacheKey2);
+        $this->assertTrue($cacheItem1->isHit());
+        $this->assertTrue($cacheItem2->isHit());
 
         $this->store->purge('https://foobar.com/');
 
-        $cacheItem = $this->getCache()->getItem($cacheKey);
-        $this->assertFalse($cacheItem->isHit());
+        $cacheItem1 = $this->getCache()->getItem($cacheKey1);
+        $cacheItem2 = $this->getCache()->getItem($cacheKey2);
+        $this->assertFalse($cacheItem1->isHit());
+        $this->assertTrue($cacheItem2->isHit());
+    }
+
+    public function testClear()
+    {
+        // Request 1
+        $request1 = Request::create('https://foobar.com/');
+        $response1 = new Response('hello world', 200);
+
+        // Request 2
+        $request2 = Request::create('https://foobar.com/foobar');
+        $response2 = new Response('hello world', 200);
+
+        $this->store->write($request1, $response1);
+        $this->store->write($request2, $response2);
+        $cacheKey1 = $this->store->getCacheKey($request1);
+        $cacheKey2 = $this->store->getCacheKey($request2);
+
+        $cacheItem1 = $this->getCache()->getItem($cacheKey1);
+        $cacheItem2 = $this->getCache()->getItem($cacheKey2);
+        $this->assertTrue($cacheItem1->isHit());
+        $this->assertTrue($cacheItem2->isHit());
+
+        $this->store->clear();
+
+        $cacheItem1 = $this->getCache()->getItem($cacheKey1);
+        $cacheItem2 = $this->getCache()->getItem($cacheKey2);
+        $this->assertFalse($cacheItem1->isHit());
+        $this->assertFalse($cacheItem2->isHit());
     }
 
     public function testPruneIgnoredIfCacheBackendDoesNotImplementPrunableInterface()
