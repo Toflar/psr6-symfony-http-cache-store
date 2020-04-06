@@ -342,12 +342,15 @@ class Psr6StoreTest extends TestCase
 
         $this->store->write($request, $response);
 
+        $this->assertSame('https://foobar.com/', $response->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
+
         $result = $this->store->lookup($request);
 
         $this->assertInstanceOf(Response::class, $result);
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
+        $this->assertNull($result->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
     }
 
     public function testRegularLookupWithBinaryResponse()
@@ -364,6 +367,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame(__DIR__.'/Fixtures/favicon.ico', $result->getFile()->getPathname());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
+        $this->assertNull($result->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
     }
 
     public function testRegularLookupWithRemovedBinaryResponse()
