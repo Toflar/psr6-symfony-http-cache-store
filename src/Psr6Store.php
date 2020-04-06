@@ -46,6 +46,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 {
     const NON_VARYING_KEY = 'non-varying';
     const COUNTER_KEY = 'write-operations-counter';
+    const CACHE_DEBUG_HEADER = 'toflar-psr6cache-requested-uri';
 
     /**
      * @var array
@@ -221,6 +222,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             }
 
             $response->headers->set('X-Content-Digest', $contentDigest);
+            $response->headers->set(self::CACHE_DEBUG_HEADER, $request->getUri());
 
             if (!$response->headers->has('Transfer-Encoding')) {
                 $response->headers->set('Content-Length', \strlen($response->getContent()));
@@ -564,6 +566,9 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      */
     private function restoreResponse(array $cacheData)
     {
+        // Unset internal debug info
+        unset($cacheData['headers'][self::CACHE_DEBUG_HEADER]);
+
         if (isset($cacheData['headers']['x-content-digest'][0])) {
             $item = $this->cache->getItem($cacheData['headers']['x-content-digest'][0]);
             if ($item->isHit()) {
