@@ -754,6 +754,78 @@ class Psr6StoreTest extends TestCase
     }
 
     /**
+     * @param int $minDigestTtl
+     * @param int $expectedExpiresAfter
+     *
+     * @dataProvider contentDigestExpiryProvider
+     */
+    public function testContentDigestExpiresCorrectly(array $responseHeaders, $minDigestTtl, $expectedExpiresAfter)
+    {
+        // This is the mock for the meta cache item, we're not interested in this one
+        $cacheItem = $this->createMock(CacheItemInterface::class);
+
+        // This is the one we're interested in this test
+        $contentDigestCacheItem = $this->createMock(CacheItemInterface::class);
+        $contentDigestCacheItem
+            ->expects($this->once())
+            ->method('set')
+            ->with('foobar');
+        $contentDigestCacheItem
+            ->expects($this->once())
+            ->method('expiresAfter')
+            ->with($expectedExpiresAfter);
+
+        $cache = $this->createMock(AdapterInterface::class);
+        $cache
+            ->expects($this->exactly(4))
+            ->method('getItem')
+            ->withConsecutive(
+                ['enc3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2'], // content digest
+                ['md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665'], // meta
+                [Psr6Store::COUNTER_KEY], // write counter
+                ['md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665'] // meta again
+            )
+            ->willReturnOnConsecutiveCalls($contentDigestCacheItem, $cacheItem, $cacheItem, $cacheItem);
+
+        $store = new Psr6Store([
+            'cache' => $cache,
+            'lock_factory' => $this->createFactoryMock(),
+            'min_digest_ttl' => $minDigestTtl,
+        ]);
+
+        $response = new Response('foobar', 200, $responseHeaders);
+        $request = Request::create('https://foobar.com/');
+        $store->write($request, $response);
+    }
+
+    public function contentDigestExpiryProvider()
+    {
+        yield 'Test no cache headers provided should take minimum configured TTL' => [
+            [],
+            86400,
+            86400,
+        ];
+
+        yield 'Test lower maxage provided should take minimum configured TTL' => [
+            ['Cache-Control' => 's-maxage=600, public'],
+            86400,
+            86400,
+        ];
+
+        yield 'Test lower maxage provided should take minimum configured TTL (test 2)' => [
+            ['Cache-Control' => 's-maxage=600, public'],
+            10000,
+            10000,
+        ];
+
+        yield 'Test higher maxage provided should take higher TTL' => [
+            ['Cache-Control' => 's-maxage=100000, public'],
+            86400,
+            100000,
+        ];
+    }
+
+    /**
      * @param null $store
      *
      * @return TagAwareAdapterInterface

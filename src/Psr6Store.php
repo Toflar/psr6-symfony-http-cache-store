@@ -108,6 +108,56 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      *                      Type: string
      *                      Default: Cache-Tags
+     *
+     * - min_digest_ttl:    To optimize storage, responses that share the same
+     *                      content also share the same cache item for this content.
+     *                      E.g. the very same HTML response is never cached twice
+     *                      but rather referenced to. The cache item for the request
+     *                      itself shall be called "request meta cache item" and the
+     *                      content it references to, is the "content digest cache item".
+     *                      You can find the calculated hash in the "X-Content-Digest"
+     *                      response header (prefixed with "X-" for compatibility with
+     *                      the Symfony default Store implementation).
+     *
+     *                      When a request meta cache item gets invalidated,
+     *                      we cannot invalidate  the content digest cache item because
+     *                      that would mean, it implicitly invalidates all the other
+     *                      request meta cache items, as their content digest cache item
+     *                      is not available anymore.
+     *                      However, never deleting them at all would mean they remain in
+     *                      our cache forever.
+     *                      This is kind of a bad situation because the content digest is
+     *                      usually a lot bigger than the meta information. So it's the
+     *                      one we would really like to clean up!
+     *
+     *                      To solve this, we need to also expire content digest cache items.
+     *                      We cannot, however, expire them the same time we expire the request
+     *                      meta cache item (based it's Cache-Control or Expire headers).
+     *                      Why not? Imagine this:
+     *
+     *                      - Request 1:
+     *                        The response is a 10 MB file and is cacheable for 10 minutes.
+     *                      - Request 2:
+     *                        The response is the same 10 MB file but in this case, it's
+     *                        cacheable for 24 hours.
+     *
+     *
+     *                      If we were to expire the content digest item the same as the meta
+     *                      cache item, it would mean it will expire after 10 minutes and thus,
+     *                      implicitly also expire our cache item for request 2 although we
+     *                      could've kept that in the cache for 24 hours!
+     *                      If request 2 came before request 1, it wouldn't be a problem.
+     *                      The issue here is with responses that can be cached for a rather short time,
+     *                      sharing the content with responses that can be cached for a longer time.
+     *                      If the one with a shorter lifetime generates the digest first, it would
+     *                      implicitly reduce the cache lifetime of all the other request meta
+     *                      cache items.
+     *
+     *                      To circumvent this, you can configure a minimum lifetime for the
+     *                      content digest cache items.
+     *
+     *                      Type: int
+     *                      Default: 86400
      */
     public function __construct(array $options = [])
     {
@@ -121,6 +171,9 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         $resolver->setDefault('cache_tags_header', 'Cache-Tags')
             ->setAllowedTypes('cache_tags_header', 'string');
+
+        $resolver->setDefault('min_digest_ttl', 86400)
+            ->setAllowedTypes('min_digest_ttl', 'int');
 
         $resolver->setDefault('cache', function (Options $options) {
             if (!isset($options['cache_directory'])) {
@@ -217,7 +270,14 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
                 $response->getFile()->getPathname() :
                 $response->getContent();
 
-            if (false === $this->saveDeferred($contentDigest, $cacheValue)) {
+            // Save content digest (no need to lookup if it already exists, so TTL is maybe updated)
+            $saveContentDigest = $this->saveDeferred(
+                $contentDigest,
+                $cacheValue,
+                max($this->options['min_digest_ttl'], $response->getMaxAge())
+            );
+
+            if (false === $saveContentDigest) {
                 throw new \RuntimeException('Unable to store the entity.');
             }
 
