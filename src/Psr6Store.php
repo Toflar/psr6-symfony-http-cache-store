@@ -198,7 +198,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * Writes a cache entry to the store for the given Request and Response.
+     * Writes a content digest cache item and a request meta cache item to the store for
+     * the given Request and Response.
      *
      * Existing entries are read and any that match the response are removed. This
      * method calls write with the new list of cache entries.
@@ -510,7 +511,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * Increases a counter every time an item is stored to the cache and then
+     * Increases a counter every time a write action is performed and then
      * prunes expired cache entries if a configurable threshold is reached.
      * This only happens during write operations so cache retrieval is not
      * slowed down.
