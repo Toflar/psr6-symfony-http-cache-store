@@ -198,8 +198,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * Writes a content digest cache item and a request meta cache item to the store for
-     * the given Request and Response.
+     * Writes a cache entry to the store for the given Request and Response.
      *
      * Existing entries are read and any that match the response are removed. This
      * method calls write with the new list of cache entries.
