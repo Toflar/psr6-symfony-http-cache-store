@@ -273,6 +273,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         $this->saveDeferred($cacheKey, $entries, $response->getMaxAge(), $tags);
 
+        // Commit all deferred cache items
         $this->cache->commit();
 
         return $cacheKey;
