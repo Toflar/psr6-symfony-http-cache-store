@@ -87,6 +87,9 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $resolver->setDefault('cache_tags_header', 'Cache-Tags')
             ->setAllowedTypes('cache_tags_header', 'string');
 
+        $resolver->setDefault('generate_content_digests', true)
+            ->setAllowedTypes('generate_content_digests', 'boolean');
+
         $resolver->setDefault('cache', function (Options $options) {
             if (!isset($options['cache_directory'])) {
                 throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
@@ -198,11 +201,17 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         }
 
         // Add or replace entry with current Vary header key
-        $entries[$this->getVaryKey($response->getVary(), $request)] = [
+        $varyKey = $this->getVaryKey($response->getVary(), $request);
+        $entries[$varyKey] = [
             'vary' => $response->getVary(),
             'headers' => $headers,
             'status' => $response->getStatusCode(),
         ];
+
+        // Add content if content digests are disabled
+        if (!$this->options['generate_content_digests']) {
+            $entries[$varyKey]['content'] = $response->getContent();
+        }
 
         // If the response has a Vary header we remove the non-varying entry
         if ($response->hasVary()) {
@@ -412,7 +421,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * @return string
+     * @return string|null
      *
      * @internal Do not use in public code, this is for unit testing purposes only
      */
@@ -420,6 +429,10 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     {
         if ($response instanceof BinaryFileResponse) {
             return 'bf'.hash_file('sha256', $response->getFile()->getPathname());
+        }
+
+        if (!$this->options['generate_content_digests']) {
+            return null;
         }
 
         return 'en'.hash('sha256', $response->getContent());
@@ -465,6 +478,11 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         }
 
         $contentDigest = $this->generateContentDigest($response);
+
+        if (null === $contentDigest) {
+            return;
+        }
+
         $digestCacheItem = $this->cache->getItem($contentDigest);
 
         if ($digestCacheItem->isHit()) {
@@ -575,7 +593,18 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         // Unset internal debug info
         unset($cacheData['headers'][self::CACHE_DEBUG_HEADER]);
 
+        // Check for content digest header
         if (!isset($cacheData['headers']['x-content-digest'][0])) {
+            // No digest was generated but the content was stored inline
+            if (isset($cacheData['content'])) {
+                return new Response(
+                    $cacheData['content'],
+                    $cacheData['status'],
+                    $cacheData['headers']
+                );
+            }
+
+            // No content digest and no inline content means we cannot restore the response
             return null;
         }
 

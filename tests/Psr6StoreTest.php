@@ -361,6 +361,32 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
         $this->assertNull($result->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
+        $this->assertSame('enb94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9', $result->headers->get('X-Content-Digest'));
+    }
+
+    public function testRegularLookupWithContentDigestsDisabled()
+    {
+        $request = Request::create('https://foobar.com/');
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
+        $response->headers->set('Foobar', 'whatever');
+
+        $store = new Psr6Store([
+            'cache_directory' => sys_get_temp_dir(),
+            'generate_content_digests' => false,
+        ]);
+
+        $store->write($request, $response);
+
+        $this->assertSame('https://foobar.com/', $response->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
+
+        $result = $store->lookup($request);
+
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertSame(200, $result->getStatusCode());
+        $this->assertSame('hello world', $result->getContent());
+        $this->assertSame('whatever', $result->headers->get('Foobar'));
+        $this->assertNull($result->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
+        $this->assertNull($result->headers->get('X-Content-Digest'));
     }
 
     public function testRegularLookupWithBinaryResponse()
@@ -378,6 +404,30 @@ class Psr6StoreTest extends TestCase
         $this->assertSame(__DIR__.'/Fixtures/favicon.ico', $result->getFile()->getPathname());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
         $this->assertNull($result->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
+        $this->assertSame('bfe8149cee23ba25e6b878864c1c8b3344ee1b3d5c6d468b2e4f7593be65bb1b68', $result->headers->get('X-Content-Digest'));
+    }
+
+    public function testRegularLookupWithBinaryResponseWithContentDigestsDisabled()
+    {
+        $request = Request::create('https://foobar.com/');
+        $response = new BinaryFileResponse(__DIR__.'/Fixtures/favicon.ico', 200, ['Cache-Control' => 's-maxage=600, public']);
+        $response->headers->set('Foobar', 'whatever');
+
+        $store = new Psr6Store([
+            'cache_directory' => sys_get_temp_dir(),
+            'generate_content_digests' => false,
+        ]);
+
+        $store->write($request, $response);
+
+        $result = $store->lookup($request);
+
+        $this->assertInstanceOf(BinaryFileResponse::class, $result);
+        $this->assertSame(200, $result->getStatusCode());
+        $this->assertSame(__DIR__.'/Fixtures/favicon.ico', $result->getFile()->getPathname());
+        $this->assertSame('whatever', $result->headers->get('Foobar'));
+        $this->assertNull($result->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
+        $this->assertSame('bfe8149cee23ba25e6b878864c1c8b3344ee1b3d5c6d468b2e4f7593be65bb1b68', $result->headers->get('X-Content-Digest'));
     }
 
     public function testRegularLookupWithRemovedBinaryResponse()

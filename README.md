@@ -112,6 +112,40 @@ passing an array of `$options` in the constructor:
 
   **Type**: `string`
   **Default**: `Cache-Tags`
+
+* **generate_content_digests**: Whether or not content digests should be generated.
+  See "Generating Content Digests" for more information.
+
+  **Type**: `boolean`
+  **Default**: `true`
+  
+### Generating Content Digests
+
+By default, this cache implementation generates content digests.
+This means that the response meta data is stored separately from the
+response content. If multiple responses share the same content, it
+is stored in the cache only once.
+Compare the following illustrations to see the difference:
+
+**With generating content digests**:
+![Illustration of the cache with generating content digests](docs/with_content_digests.svg)
+
+**Without generating content digests**:
+![Illustration of the cache without generating content digests](docs/without_content_digests.svg)
+
+Generating content digests optimizes the cache so it uses up less
+storage. Using them, however, also comes at the costs of requiring
+a second round trip to fetch the content digest from the cache during
+the lookup process.
+
+Whether or not you want to use content digests depends on your PSR-6
+cache back end. If lookups are fast and storage is rather limited (e.g. Redis),
+you might want to use content digests. If lookups are rather slow and
+storage is less of an issue (e.g. Filesystem), you might want to disable
+them.
+
+You can control the behaviour using the `generate_content_digests` configuration
+option.
   
 ### Caching `BinaryFileResponse` Instances
 
