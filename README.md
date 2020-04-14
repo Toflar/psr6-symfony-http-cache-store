@@ -128,9 +128,11 @@ is stored in the cache only once.
 Compare the following illustrations to see the difference:
 
 **With generating content digests**:
+
 ![Illustration of the cache with generating content digests](docs/with_content_digests.svg)
 
 **Without generating content digests**:
+
 ![Illustration of the cache without generating content digests](docs/without_content_digests.svg)
 
 Generating content digests optimizes the cache so it uses up less
