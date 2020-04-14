@@ -399,6 +399,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
     /**
      * @return string
+     *
+     * @internal Do not use in public code, this is for unit testing purposes only
      */
     public function getCacheKey(Request $request)
     {
@@ -411,8 +413,22 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
     /**
      * @return string
+     *
+     * @internal Do not use in public code, this is for unit testing purposes only
      */
-    public function getVaryKey(array $vary, Request $request)
+    public function generateContentDigest(Response $response)
+    {
+        if ($response instanceof BinaryFileResponse) {
+            return 'bf'.hash_file('sha256', $response->getFile()->getPathname());
+        }
+
+        return 'en'.hash('sha256', $response->getContent());
+    }
+
+    /**
+     * @return string
+     */
+    private function getVaryKey(array $vary, Request $request)
     {
         if (0 === \count($vary)) {
             return self::NON_VARYING_KEY;
@@ -440,18 +456,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         }
 
         return hash('sha256', $hashData);
-    }
-
-    /**
-     * @return string
-     */
-    public function generateContentDigest(Response $response)
-    {
-        if ($response instanceof BinaryFileResponse) {
-            return 'bf'.hash_file('sha256', $response->getFile()->getPathname());
-        }
-
-        return 'en'.hash('sha256', $response->getContent());
     }
 
     private function saveContentDigest(Response $response)
