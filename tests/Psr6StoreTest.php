@@ -142,6 +142,16 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->store->lock($request));
     }
 
+    public function testThrowsIfResponseHasNoExpirationTime()
+    {
+        $request = Request::create('/');
+        $response = new Response('hello world', 200);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('HttpCache should not forward any response without any cache expiration time to the store.');
+        $this->store->write($request, $response);
+    }
+
     public function testWriteThrowsExceptionIfDigestCannotBeStored()
     {
         $innerCache = new ArrayAdapter();
@@ -161,7 +171,7 @@ class Psr6StoreTest extends TestCase
         ]);
 
         $request = Request::create('/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unable to store the entity.');
@@ -171,14 +181,14 @@ class Psr6StoreTest extends TestCase
     public function testWriteStoresTheResponseContent()
     {
         $request = Request::create('/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
         $contentDigest = $this->store->generateContentDigest($response);
 
         $this->store->write($request, $response);
 
         $this->assertTrue($this->getCache()->hasItem($contentDigest), 'Response content is stored in cache.');
-        $this->assertSame($response->getContent(), $this->getCache()->getItem($contentDigest)->get(), 'Response content is stored in cache.');
+        $this->assertSame(['expires' => 600, 'contents' => $response->getContent()], $this->getCache()->getItem($contentDigest)->get(), 'Response content is stored in cache.');
         $this->assertSame($contentDigest, $response->headers->get('X-Content-Digest'), 'Content digest is stored in the response header.');
         $this->assertSame(\strlen($response->getContent()), (int) $response->headers->get('Content-Length'), 'Response content length is updated.');
     }
@@ -186,7 +196,7 @@ class Psr6StoreTest extends TestCase
     public function testWriteDoesNotStoreTheResponseContentOfNonOriginalResponse()
     {
         $request = Request::create('/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
         $contentDigest = $this->store->generateContentDigest($response);
 
@@ -201,7 +211,7 @@ class Psr6StoreTest extends TestCase
     public function testWriteOnlyUpdatesContentLengthIfThereIsNoTransferEncodingHeader()
     {
         $request = Request::create('/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('Transfer-Encoding', 'chunked');
 
         $this->store->write($request, $response);
@@ -212,7 +222,7 @@ class Psr6StoreTest extends TestCase
     public function testWriteStoresEntries()
     {
         $request = Request::create('/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('age', 120);
 
         $cacheKey = $this->store->getCacheKey($request);
@@ -234,7 +244,7 @@ class Psr6StoreTest extends TestCase
     public function testWriteAddsTags()
     {
         $request = Request::create('/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('Cache-Tags', 'foobar,other tag');
 
         $cacheKey = $this->store->getCacheKey($request);
@@ -249,7 +259,7 @@ class Psr6StoreTest extends TestCase
     public function testWriteAddsTagsWithMultipleHeaders()
     {
         $request = Request::create('/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('Cache-Tags', ['foobar,other tag', 'some,more', 'tags', 'split,over', 'multiple-headers']);
 
         $cacheKey = $this->store->getCacheKey($request);
@@ -295,8 +305,8 @@ class Psr6StoreTest extends TestCase
     public function testVaryResponseDropsNonVaryingOne()
     {
         $request = Request::create('/');
-        $nonVarying = new Response('hello world', 200);
-        $varying = new Response('hello world', 200, ['Vary' => 'Foobar', 'Foobar' => 'whatever']);
+        $nonVarying = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
+        $varying = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public', 'Vary' => 'Foobar', 'Foobar' => 'whatever']);
 
         $this->store->write($request, $nonVarying);
 
@@ -337,7 +347,7 @@ class Psr6StoreTest extends TestCase
     public function testRegularLookup()
     {
         $request = Request::create('https://foobar.com/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('Foobar', 'whatever');
 
         $this->store->write($request, $response);
@@ -356,7 +366,7 @@ class Psr6StoreTest extends TestCase
     public function testRegularLookupWithBinaryResponse()
     {
         $request = Request::create('https://foobar.com/');
-        $response = new BinaryFileResponse(__DIR__.'/Fixtures/favicon.ico');
+        $response = new BinaryFileResponse(__DIR__.'/Fixtures/favicon.ico', 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('Foobar', 'whatever');
 
         $this->store->write($request, $response);
@@ -374,7 +384,7 @@ class Psr6StoreTest extends TestCase
     {
         $request = Request::create('https://foobar.com/');
         $file = new File(__DIR__.'/Fixtures/favicon.ico');
-        $response = new BinaryFileResponse($file);
+        $response = new BinaryFileResponse($file, 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('Foobar', 'whatever');
 
         $this->store->write($request, $response);
@@ -393,7 +403,7 @@ class Psr6StoreTest extends TestCase
     {
         // Cookies match
         $request = Request::create('https://foobar.com/', 'GET', [], ['Foo' => 'Bar'], [], ['HTTP_COOKIE' => 'Foo=Bar']);
-        $response = new Response('hello world', 200, ['Vary' => 'Cookie']);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public', 'Vary' => 'Cookie']);
         $response->headers->setCookie(new Cookie('Foo', 'Bar', 0, '/', false, null, true, false, null));
 
         $this->store->write($request, $response);
@@ -422,7 +432,7 @@ class Psr6StoreTest extends TestCase
     {
         $request = Request::create('https://foobar.com/');
         $request->headers->set('Foobar', 'whatever');
-        $response = new Response('hello world', 200, ['Vary' => 'Foobar']);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public', 'Vary' => 'Foobar']);
 
         $this->store->write($request, $response);
 
@@ -445,8 +455,8 @@ class Psr6StoreTest extends TestCase
         $htmlRequest = Request::create('https://foobar.com/');
         $htmlRequest->headers->set('Accept', 'text/html');
 
-        $jsonResponse = new Response('{}', 200, ['Vary' => 'Accept', 'Content-Type' => 'application/json']);
-        $htmlResponse = new Response('<html></html>', 200, ['Vary' => 'Accept', 'Content-Type' => 'text/html']);
+        $jsonResponse = new Response('{}', 200, ['Cache-Control' => 's-maxage=600, public', 'Vary' => 'Accept', 'Content-Type' => 'application/json']);
+        $htmlResponse = new Response('<html></html>', 200, ['Cache-Control' => 's-maxage=600, public', 'Vary' => 'Accept', 'Content-Type' => 'text/html']);
 
         // Fill cache
         $this->store->write($jsonRequest, $jsonResponse);
@@ -485,7 +495,7 @@ class Psr6StoreTest extends TestCase
     public function testInvalidate()
     {
         $request = Request::create('https://foobar.com/');
-        $response = new Response('hello world', 200);
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
         $response->headers->set('Foobar', 'whatever');
 
         $this->store->write($request, $response);
@@ -504,11 +514,11 @@ class Psr6StoreTest extends TestCase
     {
         // Request 1
         $request1 = Request::create('https://foobar.com/');
-        $response1 = new Response('hello world', 200);
+        $response1 = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
         // Request 2
         $request2 = Request::create('https://foobar.com/foobar');
-        $response2 = new Response('hello world', 200);
+        $response2 = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
         $this->store->write($request1, $response1);
         $this->store->write($request2, $response2);
@@ -532,11 +542,11 @@ class Psr6StoreTest extends TestCase
     {
         // Request 1
         $request1 = Request::create('https://foobar.com/');
-        $response1 = new Response('hello world', 200);
+        $response1 = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
         // Request 2
         $request2 = Request::create('https://foobar.com/foobar');
-        $response2 = new Response('hello world', 200);
+        $response2 = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
         $this->store->write($request1, $response1);
         $this->store->write($request2, $response2);
@@ -611,7 +621,7 @@ class Psr6StoreTest extends TestCase
 
         foreach (range(1, 21) as $entry) {
             $request = Request::create('https://foobar.com/'.$entry);
-            $response = new Response('hello world', 200);
+            $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
             $store->write($request, $response);
         }
@@ -639,7 +649,7 @@ class Psr6StoreTest extends TestCase
 
         foreach (range(1, 21) as $entry) {
             $request = Request::create('https://foobar.com/'.$entry);
-            $response = new Response('hello world', 200);
+            $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
             $store->write($request, $response);
         }
@@ -680,7 +690,7 @@ class Psr6StoreTest extends TestCase
 
         foreach (range(1, 21) as $entry) {
             $request = Request::create('https://foobar.com/'.$entry);
-            $response = new Response('hello world', 200);
+            $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
 
             $store->write($request, $response);
         }
@@ -754,12 +764,12 @@ class Psr6StoreTest extends TestCase
     }
 
     /**
-     * @param int $minDigestTtl
-     * @param int $expectedExpiresAfter
-     *
      * @dataProvider contentDigestExpiryProvider
+     *
+     * @param mixed $expectedExpiresAfter
+     * @param mixed $previousItemExpiration
      */
-    public function testContentDigestExpiresCorrectly(array $responseHeaders, $minDigestTtl, $expectedExpiresAfter)
+    public function testContentDigestExpiresCorrectly(array $responseHeaders, $expectedExpiresAfter, $previousItemExpiration = 0)
     {
         // This is the mock for the meta cache item, we're not interested in this one
         $cacheItem = $this->createMock(CacheItemInterface::class);
@@ -768,16 +778,28 @@ class Psr6StoreTest extends TestCase
         $contentDigestCacheItem = $this->createMock(CacheItemInterface::class);
         $contentDigestCacheItem
             ->expects($this->once())
-            ->method('set')
-            ->with('foobar');
-        $contentDigestCacheItem
-            ->expects($this->once())
-            ->method('expiresAfter')
-            ->with($expectedExpiresAfter);
+            ->method('isHit')
+            ->willReturn(0 !== $previousItemExpiration);
+
+        if (0 !== $previousItemExpiration) {
+            $contentDigestCacheItem
+                ->expects($this->once())
+                ->method('get')
+                ->willReturn(['expires' => $previousItemExpiration, 'contents' => 'foobar']);
+        } else {
+            $contentDigestCacheItem
+                ->expects($this->once())
+                ->method('set')
+                ->with(['expires' => $expectedExpiresAfter, 'contents' => 'foobar']);
+            $contentDigestCacheItem
+                ->expects($this->once())
+                ->method('expiresAfter')
+                ->with($expectedExpiresAfter);
+        }
 
         $cache = $this->createMock(AdapterInterface::class);
         $cache
-            ->expects($this->exactly(4))
+            ->expects($this->exactly(3))
             ->method('getItem')
             ->withConsecutive(
                 ['enc3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2'], // content digest
@@ -790,7 +812,6 @@ class Psr6StoreTest extends TestCase
         $store = new Psr6Store([
             'cache' => $cache,
             'lock_factory' => $this->createFactoryMock(),
-            'min_digest_ttl' => $minDigestTtl,
         ]);
 
         $response = new Response('foobar', 200, $responseHeaders);
@@ -800,28 +821,22 @@ class Psr6StoreTest extends TestCase
 
     public function contentDigestExpiryProvider()
     {
-        yield 'Test no cache headers provided should take minimum configured TTL' => [
-            [],
-            86400,
-            86400,
-        ];
-
-        yield 'Test lower maxage provided should take minimum configured TTL' => [
+        yield 'Test no previous response should take the same max age as the current response' => [
             ['Cache-Control' => 's-maxage=600, public'],
-            86400,
-            86400,
+            600,
+            0,
         ];
 
-        yield 'Test lower maxage provided should take minimum configured TTL (test 2)' => [
+        yield 'Previous max-age was higher, digest expiration should not be touched then' => [
             ['Cache-Control' => 's-maxage=600, public'],
-            10000,
-            10000,
+            900,
+            900,
         ];
 
-        yield 'Test higher maxage provided should take higher TTL' => [
-            ['Cache-Control' => 's-maxage=100000, public'],
-            86400,
-            100000,
+        yield 'Previous max-age was lower, digest expiration should be updated' => [
+            ['Cache-Control' => 's-maxage=1800, public'],
+            1800,
+            900,
         ];
     }
 
