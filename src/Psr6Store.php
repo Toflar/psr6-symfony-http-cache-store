@@ -48,6 +48,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     const NON_VARYING_KEY = 'non-varying';
     const COUNTER_KEY = 'write-operations-counter';
     const CACHE_DEBUG_HEADER = 'toflar-psr6cache-requested-uri';
+    const CLEANUP_LOCK_KEY = 'cleanup-lock';
 
     /**
      * @var array
@@ -371,8 +372,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             return;
         }
 
-        // Make sure we do not have multiple pruning processes running
-        $lock = $this->lockFactory->createLock('prune-lock');
+        // Make sure we do not have multiple clearing or pruning processes running
+        $lock = $this->lockFactory->createLock(self::CLEANUP_LOCK_KEY);
 
         if ($lock->acquire()) {
             $this->cache->prune();
@@ -386,8 +387,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      */
     public function clear()
     {
-        // Make sure we do not have multiple pruning processes running
-        $lock = $this->lockFactory->createLock('clear-lock');
+        // Make sure we do not have multiple clearing or pruning processes running
+        $lock = $this->lockFactory->createLock(self::CLEANUP_LOCK_KEY);
 
         if ($lock->acquire()) {
             $this->cache->clear();

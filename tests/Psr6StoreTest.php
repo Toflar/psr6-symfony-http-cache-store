@@ -610,7 +610,7 @@ class Psr6StoreTest extends TestCase
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
-            ->with('prune-lock')
+            ->with(Psr6Store::CLEANUP_LOCK_KEY)
             ->willReturn($lock);
 
         $store = new Psr6Store([
@@ -679,7 +679,7 @@ class Psr6StoreTest extends TestCase
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
-            ->with('prune-lock')
+            ->with(Psr6Store::CLEANUP_LOCK_KEY)
             ->willReturn($lock);
 
         $store = new Psr6Store([
