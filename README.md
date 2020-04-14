@@ -113,7 +113,7 @@ passing an array of `$options` in the constructor:
   **Type**: `string`
   **Default**: `Cache-Tags`
   
-### Caching `BinaryFileResponse` instances
+### Caching `BinaryFileResponse` Instances
 
 This cache implementation allows to cache `BinaryFileResponse` instances but
 the files are not actually copied to the cache directory. It will just try to
@@ -123,7 +123,7 @@ It is ideal for use cases such as caching `/favicon.ico` requests where you woul
 like to prevent the application from being started and thus deliver the response
 from HttpCache.
 
-### Cache tagging
+### Cache Tagging
 
 Tag cache entries by adding a response header with the tags as a comma 
 separated value. By default, that header is called `Cache-Tags`, this can be
@@ -133,7 +133,7 @@ To invalidate tags, call the method `Psr6Store::invalidateTags` or use the
 `PurgeTagsListener` from the [FOSHttpCache][3] library to handle tag 
 invalidation requests.
 
-### Pruning expired cache entries
+### Pruning Expired Cache Items
 
 By default, this store removes expired entries from the cache after every `500`
 cache **write** operations. Fetching data does not affect performance.
