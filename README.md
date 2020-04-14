@@ -108,20 +108,58 @@ passing an array of `$options` in the constructor:
   **Type**: `int`
   **Default**: `500`
 
-* **cache_tags_header**: The HTTP header name used to check for tags
+* **cache_tags_header**: The HTTP header name that's used to check for tags.
 
   **Type**: `string`
   **Default**: `Cache-Tags`
+
+* **generate_content_digests**: Whether or not content digests should be generated.
+  See "Generating Content Digests" for more information.
+
+  **Type**: `boolean`
+  **Default**: `true`
   
-### Caching `BinaryFileResponse` instances
+### Generating Content Digests
 
-This cache implementation allows to cache `BinaryFileResponse` instances but the files are not actually copied to
-the cache directory. It will just try to fetch the original file and if that does not exist anymore, the store returns
+By default, this cache implementation generates content digests.
+This means that the response meta data is stored separately from the
+response content. If multiple responses share the same content, it
+is stored in the cache only once.
+Compare the following illustrations to see the difference:
+
+**With generating content digests**:
+
+![Illustration of the cache with generating content digests](docs/with_content_digests.svg)
+
+**Without generating content digests**:
+
+![Illustration of the cache without generating content digests](docs/without_content_digests.svg)
+
+Generating content digests optimizes the cache so it uses up less
+storage. Using them, however, also comes at the costs of requiring
+a second round trip to fetch the content digest from the cache during
+the lookup process.
+
+Whether or not you want to use content digests depends on your PSR-6
+cache back end. If lookups are fast and storage is rather limited (e.g. Redis),
+you might want to use content digests. If lookups are rather slow and
+storage is less of an issue (e.g. Filesystem), you might want to disable
+them.
+
+You can control the behaviour using the `generate_content_digests` configuration
+option.
+  
+### Caching `BinaryFileResponse` Instances
+
+This cache implementation allows to cache `BinaryFileResponse` instances but
+the files are not actually copied to the cache directory. It will just try to
+fetch the original file and if that does not exist anymore, the store returns
 `null`, causing HttpCache to deal with it as a cache miss and continue normally.
-It is ideal for use cases such as caching `/favicon.ico` requests where you would like to prevent the application from
-being started and thus deliver the response from HttpCache.
+It is ideal for use cases such as caching `/favicon.ico` requests where you would
+like to prevent the application from being started and thus deliver the response
+from HttpCache.
 
-### Cache tagging
+### Cache Tagging
 
 Tag cache entries by adding a response header with the tags as a comma 
 separated value. By default, that header is called `Cache-Tags`, this can be
@@ -131,7 +169,7 @@ To invalidate tags, call the method `Psr6Store::invalidateTags` or use the
 `PurgeTagsListener` from the [FOSHttpCache][3] library to handle tag 
 invalidation requests.
 
-### Pruning expired cache entries
+### Pruning Expired Cache Items
 
 By default, this store removes expired entries from the cache after every `500`
 cache **write** operations. Fetching data does not affect performance.
