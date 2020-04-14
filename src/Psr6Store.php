@@ -11,6 +11,7 @@
 
 namespace Toflar\Psr6HttpCacheStore;
 
+use Psr\Cache\CacheItemInterface;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
@@ -210,24 +211,15 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      */
     public function write(Request $request, Response $response)
     {
-        if (!$response->headers->has('X-Content-Digest')) {
-            $contentDigest = $this->generateContentDigest($response);
-
-            $cacheValue = $this->isBinaryFileResponseContentDigest($contentDigest) ?
-                $response->getFile()->getPathname() :
-                $response->getContent();
-
-            if (false === $this->saveDeferred($contentDigest, $cacheValue)) {
-                throw new \RuntimeException('Unable to store the entity.');
-            }
-
-            $response->headers->set('X-Content-Digest', $contentDigest);
-            $response->headers->set(self::CACHE_DEBUG_HEADER, $request->getUri());
-
-            if (!$response->headers->has('Transfer-Encoding')) {
-                $response->headers->set('Content-Length', \strlen($response->getContent()));
-            }
+        if (null === $response->getMaxAge()) {
+            throw new \InvalidArgumentException('HttpCache should not forward any response without any cache expiration time to the store.');
         }
+
+        // Add a debug header
+        $response->headers->set(self::CACHE_DEBUG_HEADER, $request->getUri());
+
+        // Save the content digest if required
+        $this->saveContentDigest($response);
 
         $cacheKey = $this->getCacheKey($request);
         $headers = $response->headers->all();
@@ -271,7 +263,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         // Prune expired entries on file system if needed
         $this->autoPruneExpiredEntries();
 
-        $this->saveDeferred($cacheKey, $entries, $response->getMaxAge(), $tags);
+        $this->saveDeferred($item, $entries, $response->getMaxAge(), $tags);
 
         // Commit all deferred cache items
         $this->cache->commit();
@@ -498,6 +490,53 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return 'en'.hash('sha256', $response->getContent());
     }
 
+    private function saveContentDigest(Response $response)
+    {
+        if ($response->headers->has('X-Content-Digest')) {
+            return;
+        }
+
+        $contentDigest = $this->generateContentDigest($response);
+        $digestCacheItem = $this->cache->getItem($contentDigest);
+
+        if ($digestCacheItem->isHit()) {
+            $cacheValue = $digestCacheItem->get();
+
+            // BC
+            if (\is_string($cacheValue)) {
+                $cacheValue = [
+                    'expires' => 0, // Forces update to the new format
+                    'contents' => $cacheValue,
+                ];
+            }
+        } else {
+            $cacheValue = [
+                'expires' => 0, // Forces storing the new entry
+                'contents' => $this->isBinaryFileResponseContentDigest($contentDigest) ?
+                    $response->getFile()->getPathname() :
+                    $response->getContent(),
+            ];
+        }
+
+        $responseMaxAge = (int) $response->getMaxAge();
+
+        // Update expires key and save the entry if required
+        if ($responseMaxAge > $cacheValue['expires']) {
+            $cacheValue['expires'] = $responseMaxAge;
+
+            if (false === $this->saveDeferred($digestCacheItem, $cacheValue, $responseMaxAge)) {
+                throw new \RuntimeException('Unable to store the entity.');
+            }
+        }
+
+        $response->headers->set('X-Content-Digest', $contentDigest);
+
+        // Make sure the content-length header is present
+        if (!$response->headers->has('Transfer-Encoding')) {
+            $response->headers->set('Content-Length', \strlen($response->getContent()));
+        }
+    }
+
     /**
      * Test whether a given digest identifies a BinaryFileResponse.
      *
@@ -538,20 +577,18 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * @param string $key
-     * @param string $data
-     * @param int    $expiresAfter
-     * @param array  $tags
+     * @param mixed $data
+     * @param int   $expiresAfter
+     * @param array $tags
      *
      * @return bool
      */
-    private function saveDeferred($key, $data, $expiresAfter = null, $tags = [])
+    private function saveDeferred(CacheItemInterface $item, $data, $expiresAfter = null, $tags = [])
     {
-        $item = $this->cache->getItem($key);
         $item->set($data);
         $item->expiresAfter($expiresAfter);
 
-        if (0 !== \count($tags)) {
+        if (0 !== \count($tags) && method_exists($item, 'tag')) {
             $item->tag($tags);
         }
 
@@ -570,34 +607,42 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         // Unset internal debug info
         unset($cacheData['headers'][self::CACHE_DEBUG_HEADER]);
 
-        if (isset($cacheData['headers']['x-content-digest'][0])) {
-            $item = $this->cache->getItem($cacheData['headers']['x-content-digest'][0]);
-            if ($item->isHit()) {
-                $value = $item->get();
-
-                if ($this->isBinaryFileResponseContentDigest($cacheData['headers']['x-content-digest'][0])) {
-                    try {
-                        $file = new File($value);
-                    } catch (FileNotFoundException $e) {
-                        return null;
-                    }
-
-                    return new BinaryFileResponse(
-                        $file,
-                        $cacheData['status'],
-                        $cacheData['headers']
-                    );
-                }
-
-                return new Response(
-                        $value,
-                        $cacheData['status'],
-                        $cacheData['headers']
-                    );
-            }
+        if (!isset($cacheData['headers']['x-content-digest'][0])) {
+            return null;
         }
 
-        return null;
+        $item = $this->cache->getItem($cacheData['headers']['x-content-digest'][0]);
+
+        if (!$item->isHit()) {
+            return null;
+        }
+
+        $value = $item->get();
+
+        // BC
+        if (\is_string($value)) {
+            $value = ['expires' => 0, 'contents' => $value];
+        }
+
+        if ($this->isBinaryFileResponseContentDigest($cacheData['headers']['x-content-digest'][0])) {
+            try {
+                $file = new File($value['contents']);
+            } catch (FileNotFoundException $e) {
+                return null;
+            }
+
+            return new BinaryFileResponse(
+                $file,
+                $cacheData['status'],
+                $cacheData['headers']
+            );
+        }
+
+        return new Response(
+            $value['contents'],
+            $cacheData['status'],
+            $cacheData['headers']
+        );
     }
 
     /**
