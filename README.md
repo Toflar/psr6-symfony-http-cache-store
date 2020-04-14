@@ -108,18 +108,20 @@ passing an array of `$options` in the constructor:
   **Type**: `int`
   **Default**: `500`
 
-* **cache_tags_header**: The HTTP header name used to check for tags
+* **cache_tags_header**: The HTTP header name that's used to check for tags.
 
   **Type**: `string`
   **Default**: `Cache-Tags`
   
 ### Caching `BinaryFileResponse` instances
 
-This cache implementation allows to cache `BinaryFileResponse` instances but the files are not actually copied to
-the cache directory. It will just try to fetch the original file and if that does not exist anymore, the store returns
+This cache implementation allows to cache `BinaryFileResponse` instances but
+the files are not actually copied to the cache directory. It will just try to
+fetch the original file and if that does not exist anymore, the store returns
 `null`, causing HttpCache to deal with it as a cache miss and continue normally.
-It is ideal for use cases such as caching `/favicon.ico` requests where you would like to prevent the application from
-being started and thus deliver the response from HttpCache.
+It is ideal for use cases such as caching `/favicon.ico` requests where you would
+like to prevent the application from being started and thus deliver the response
+from HttpCache.
 
 ### Cache tagging
 

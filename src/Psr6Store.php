@@ -71,44 +71,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
     /**
      * When creating a Psr6Store you can configure a number options.
-     *
-     * Either cache_directory or cache and lock_factory are required. If you
-     * want to set a custom cache / lock_factory, please **read the warning in
-     * the README first**.
-     *
-     * - cache_directory:   Path to the cache directory for the default cache
-     *                      adapter and lock factory.
-     *
-     * - cache:             Explicitly specify the cache adapter you want to
-     *                      use. Note that if you want to make use of cache
-     *                      tagging, this cache must implement the
-     *                      Symfony\Component\Cache\Adapter\TagAwareAdapterInterface
-     *
-     *                      Make sure that lock and cache have the same
-     *                      scope. *Read the warning in the README!*
-     *
-     *                      Type: Symfony\Component\Cache\Adapter\AdapterInterface
-     *
-     * - lock_factory:      Explicitly specify the cache adapter you want to
-     *                      use. Make sure that lock and cache have the same
-     *                      scope. *Read the warning in the README!*
-     *
-     *                      Type: Symfony\Component\Lock\Factory
-     *                      Default: Factory with SemaphoreStore if available,
-     *                               FlockStore otherwise.
-     *
-     * - prune_threshold:   Configure the number of write actions until the
-     *                      store will prune the expired cache entries. Pass
-     *                      0 to disable automated pruning.
-     *
-     *                      Type: int
-     *                      Default: 500
-     *
-     * - cache_tags_header: Name of HTTP header containing a comma separated
-     *                      list of tags to tag the response with.
-     *
-     *                      Type: string
-     *                      Default: Cache-Tags
+     * See the README for a list of all available options and their description.
      */
     public function __construct(array $options = [])
     {
@@ -550,7 +513,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * Increases a counter every time an item is stored to the cache and then
+     * Increases a counter every time a write action is performed and then
      * prunes expired cache entries if a configurable threshold is reached.
      * This only happens during write operations so cache retrieval is not
      * slowed down.
