@@ -112,7 +112,7 @@ passing an array of `$options` in the constructor:
 
   **Type**: `string`
   **Default**: `Cache-Tags`
-
+  
 ### Caching `BinaryFileResponse` instances
 
 This cache implementation allows to cache `BinaryFileResponse` instances but the files are not actually copied to
