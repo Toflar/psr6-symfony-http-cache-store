@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
@@ -888,6 +889,78 @@ class Psr6StoreTest extends TestCase
             1800,
             900,
         ];
+    }
+
+
+    public function testSymfonyFileSystemTagAwareAdapter()
+    {
+        $cache  = new FilesystemTagAwareAdapter();
+        $cache->clear();
+
+        /** @var CacheItemInterface $cacheItem */
+        $cacheItem = $cache->getItem('test');
+
+        $this->assertFalse($cacheItem->isHit());
+
+        // write cache again
+        $cacheItem->set('test');
+        $cacheItem->tag('1234');
+        $cacheItem->expiresAfter(5);
+
+        $cache->save($cacheItem);
+
+        /** @var CacheItemInterface $cacheItem */
+        $cacheItem = $cache->getItem('test');
+        $this->assertTrue($cacheItem->isHit());
+
+        sleep(5);
+
+        /** @var CacheItemInterface $cacheItem */
+        $cacheItem = $cache->getItem('test');
+
+        $this->assertFalse($cacheItem->isHit());
+
+        // write cache file again
+        $cacheItem->set('test');
+        $cacheItem->tag('1234');
+        $cacheItem->expiresAfter(5);
+
+        $cache->save($cacheItem);
+        /** @var CacheItemInterface $cacheItem */
+        $cacheItem = $cache->getItem('test');
+        $this->assertTrue($cacheItem->isHit());
+    }
+
+    public function testHitAfterExpiredWithTags()
+    {
+        // first request to this resource
+        $request1 = Request::create('https://foobar.com/');
+        $response1 = new Response('hello world', 200, ['Cache-Control' => 's-maxage=5, public']);
+        $response1->headers->set('Cache-Tags', 'foobar,other tag');
+
+        $this->store->write($request1, $response1);
+        $cacheKey = $this->store->getCacheKey($request1);
+
+        // should be cached after it
+        $cacheItem = $this->getCache()->getItem($cacheKey);
+        $this->assertTrue($cacheItem->isHit());
+
+        // should be expired after 5 seconds
+        sleep(5);
+        $cacheItem = $this->getCache()->getItem($cacheKey);
+        $this->assertFalse($cacheItem->isHit());
+
+        // second request to the same resource
+        $request2 = Request::create('https://foobar.com/');
+        $response2 = new Response('hello world', 200, ['Cache-Control' => 's-maxage=5, public']);
+        $response2->headers->set('Cache-Tags', 'foobar,other tag');
+
+        $this->store->write($request2, $response2);
+        $cacheKey = $this->store->getCacheKey($request2);
+
+        // should be cache hit again
+        $cacheItem = $this->getCache()->getItem($cacheKey);
+        $this->assertTrue($cacheItem->isHit());
     }
 
     /**
