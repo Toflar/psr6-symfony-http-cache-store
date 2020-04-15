@@ -891,46 +891,6 @@ class Psr6StoreTest extends TestCase
         ];
     }
 
-
-    public function testSymfonyFileSystemTagAwareAdapter()
-    {
-        $cache  = new FilesystemTagAwareAdapter();
-        $cache->clear();
-
-        /** @var CacheItemInterface $cacheItem */
-        $cacheItem = $cache->getItem('test');
-
-        $this->assertFalse($cacheItem->isHit());
-
-        // write cache again
-        $cacheItem->set('test');
-        $cacheItem->tag('1234');
-        $cacheItem->expiresAfter(5);
-
-        $cache->save($cacheItem);
-
-        /** @var CacheItemInterface $cacheItem */
-        $cacheItem = $cache->getItem('test');
-        $this->assertTrue($cacheItem->isHit());
-
-        sleep(5);
-
-        /** @var CacheItemInterface $cacheItem */
-        $cacheItem = $cache->getItem('test');
-
-        $this->assertFalse($cacheItem->isHit());
-
-        // write cache file again
-        $cacheItem->set('test');
-        $cacheItem->tag('1234');
-        $cacheItem->expiresAfter(5);
-
-        $cache->save($cacheItem);
-        /** @var CacheItemInterface $cacheItem */
-        $cacheItem = $cache->getItem('test');
-        $this->assertTrue($cacheItem->isHit());
-    }
-
     public function testHitAfterExpiredWithTags()
     {
         // first request to this resource
