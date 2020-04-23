@@ -24,6 +24,7 @@ use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\TerminableInterface;
 use Symfony\Component\Lock\BlockingStoreInterface;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\Factory;
@@ -43,7 +44,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  *
  * @author Yanick Witschi <yanick.witschi@terminal42.ch>
  */
-class Psr6Store implements Psr6StoreInterface, ClearableInterface
+class Psr6Store implements Psr6StoreInterface, ClearableInterface, TerminableInterface
 {
     const NON_VARYING_KEY = 'non-varying';
     const COUNTER_KEY = 'write-operations-counter';
@@ -89,6 +90,9 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         $resolver->setDefault('generate_content_digests', true)
             ->setAllowedTypes('generate_content_digests', 'boolean');
+
+        $resolver->setDefault('write_on_terminate', false)
+            ->setAllowedTypes('write_on_terminate', 'boolean');
 
         $resolver->setDefault('cache', function (Options $options) {
             if (!isset($options['cache_directory'])) {
@@ -165,6 +169,31 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return null;
     }
 
+    public function write(Request $request, Response $response)
+    {
+        if (null === $response->getMaxAge()) {
+            throw new \InvalidArgumentException('HttpCache should not forward any response without any cache expiration time to the store.');
+        }
+
+        // Add a debug header
+        $response->headers->set(self::CACHE_DEBUG_HEADER, $request->getUri());
+
+        if (!$this->options['write_on_terminate']) {
+            $this->doWrite($request, $response);
+        }
+    }
+
+    public function terminate(Request $request, Response $response)
+    {
+        if (!$this->options['write_on_terminate']) {
+            return;
+        }
+
+        if ($response->headers->has(self::CACHE_DEBUG_HEADER)) {
+            $this->doWrite($request, $response);
+        }
+    }
+
     /**
      * Writes a cache entry to the store for the given Request and Response.
      *
@@ -176,7 +205,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @return string The key under which the response is stored
      */
-    public function write(Request $request, Response $response)
+    protected function doWrite(Request $request, Response $response)
     {
         if (null === $response->getMaxAge()) {
             throw new \InvalidArgumentException('HttpCache should not forward any response without any cache expiration time to the store.');
