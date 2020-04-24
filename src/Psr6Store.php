@@ -47,7 +47,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 {
     const NON_VARYING_KEY = 'non-varying';
     const COUNTER_KEY = 'write-operations-counter';
-    const CACHE_DEBUG_HEADER = 'toflar-psr6cache-requested-uri';
     const CLEANUP_LOCK_KEY = 'cleanup-lock';
 
     /**
@@ -182,9 +181,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             throw new \InvalidArgumentException('HttpCache should not forward any response without any cache expiration time to the store.');
         }
 
-        // Add a debug header
-        $response->headers->set(self::CACHE_DEBUG_HEADER, $request->getUri());
-
         // Save the content digest if required
         $this->saveContentDigest($response);
 
@@ -206,6 +202,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             'vary' => $response->getVary(),
             'headers' => $headers,
             'status' => $response->getStatusCode(),
+            'uri' => $request->getUri(), // For debugging purposes
         ];
 
         // Add content if content digests are disabled
@@ -590,9 +587,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      */
     private function restoreResponse(array $cacheData)
     {
-        // Unset internal debug info
-        unset($cacheData['headers'][self::CACHE_DEBUG_HEADER]);
-
         // Check for content digest header
         if (!isset($cacheData['headers']['x-content-digest'][0])) {
             // No digest was generated but the content was stored inline

@@ -344,6 +344,19 @@ class Psr6StoreTest extends TestCase
         $this->assertSame($cacheKeyHttps, $cacheKeyHttp);
     }
 
+    public function testDebugInfoIsAdded()
+    {
+        $request = Request::create('https://foobar.com/');
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
+
+        $this->store->write($request, $response);
+
+        $cacheKey = $this->store->getCacheKey($request);
+        $cacheItem = $this->getCache()->getItem($cacheKey);
+        $entries = $cacheItem->get();
+        $this->assertSame('https://foobar.com/', $entries[Psr6Store::NON_VARYING_KEY]['uri']);
+    }
+
     public function testRegularLookup()
     {
         $request = Request::create('https://foobar.com/');
@@ -352,15 +365,13 @@ class Psr6StoreTest extends TestCase
 
         $this->store->write($request, $response);
 
-        $this->assertSame('https://foobar.com/', $response->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
-
         $result = $this->store->lookup($request);
 
         $this->assertInstanceOf(Response::class, $result);
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
-        $this->assertFalse($result->headers->has(Psr6Store::CACHE_DEBUG_HEADER));
+
         $this->assertSame('enb94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9', $result->headers->get('X-Content-Digest'));
     }
 
@@ -377,15 +388,12 @@ class Psr6StoreTest extends TestCase
 
         $store->write($request, $response);
 
-        $this->assertSame('https://foobar.com/', $response->headers->get(Psr6Store::CACHE_DEBUG_HEADER));
-
         $result = $store->lookup($request);
 
         $this->assertInstanceOf(Response::class, $result);
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
-        $this->assertFalse($result->headers->has(Psr6Store::CACHE_DEBUG_HEADER));
         $this->assertNull($result->headers->get('X-Content-Digest'));
     }
 
@@ -403,7 +411,6 @@ class Psr6StoreTest extends TestCase
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame(__DIR__.'/Fixtures/favicon.ico', $result->getFile()->getPathname());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
-        $this->assertFalse($result->headers->has(Psr6Store::CACHE_DEBUG_HEADER));
         $this->assertSame('bfe8149cee23ba25e6b878864c1c8b3344ee1b3d5c6d468b2e4f7593be65bb1b68', $result->headers->get('X-Content-Digest'));
     }
 
@@ -426,7 +433,6 @@ class Psr6StoreTest extends TestCase
         $this->assertSame(200, $result->getStatusCode());
         $this->assertSame(__DIR__.'/Fixtures/favicon.ico', $result->getFile()->getPathname());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
-        $this->assertFalse($result->headers->has(Psr6Store::CACHE_DEBUG_HEADER));
         $this->assertSame('bfe8149cee23ba25e6b878864c1c8b3344ee1b3d5c6d468b2e4f7593be65bb1b68', $result->headers->get('X-Content-Digest'));
     }
 
