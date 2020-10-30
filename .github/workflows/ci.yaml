@@ -11,6 +11,23 @@ on:
         - cron: 0 13 * * MON
 
 jobs:
+    cs:
+        name: Coding Style
+        runs-on: ubuntu-latest
+        steps:
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 7.4
+                  coverage: none
+                  tools: php-cs-fixer
+
+            -   name: Checkout
+                uses: actions/checkout@v2
+                
+            - name: Run the CS fixer
+              run: php-cs-fixer fix
+
     tests:
         name: PHP ${{ matrix.php }}
         runs-on: ubuntu-latest
