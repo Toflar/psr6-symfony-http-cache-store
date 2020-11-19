@@ -65,7 +65,8 @@ class Psr6StoreTest extends TestCase
     {
         $cache = $this->createMock(TagAwareAdapterInterface::class);
         $cache->expects($this->once())
-            ->method('deleteItem');
+            ->method('deleteItem')
+            ->willReturn(true);
         $lockFactory = $this->createFactoryMock();
 
         $store = new Psr6Store([
@@ -159,7 +160,7 @@ class Psr6StoreTest extends TestCase
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)
             ->setConstructorArgs([$innerCache])
-            ->setMethods(['saveDeferred'])
+            ->onlyMethods(['saveDeferred'])
             ->getMock();
 
         $cache
@@ -628,7 +629,7 @@ class Psr6StoreTest extends TestCase
     {
         $cache = $this->getMockBuilder(RedisAdapter::class)
             ->disableOriginalConstructor()
-            ->setMethods(['prune'])
+            ->addMethods(['prune'])
             ->getMock();
         $cache
             ->expects($this->never())
@@ -863,6 +864,11 @@ class Psr6StoreTest extends TestCase
                 ['md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665'] // meta again
             )
             ->willReturnOnConsecutiveCalls($contentDigestCacheItem, $cacheItem, $cacheItem, $cacheItem);
+
+        $cache
+            ->expects($this->any())
+            ->method('saveDeferred')
+            ->willReturn(true);
 
         $store = new Psr6Store([
             'cache' => $cache,
