@@ -32,7 +32,7 @@ interface Psr6StoreInterface extends StoreInterface
      *
      * @return bool true on success, false otherwise
      */
-    public function invalidateTags(array $tags): bool;
+    public function invalidateTags(array $tags);
 
     /**
      * Prunes expired entries.
