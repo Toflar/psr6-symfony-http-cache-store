@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the toflar/psr6-symfony-http-cache-store package.
  *

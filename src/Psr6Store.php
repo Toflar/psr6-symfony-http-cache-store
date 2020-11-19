@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the toflar/psr6-symfony-http-cache-store package.
  *
@@ -12,7 +14,7 @@
 namespace Toflar\Psr6HttpCacheStore;
 
 use Psr\Cache\CacheItemInterface;
-use Psr\Cache\InvalidArgumentException;
+use Psr\Cache\InvalidArgumentException as CacheInvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
@@ -25,8 +27,8 @@ use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\BlockingStoreInterface;
+use Symfony\Component\Lock\Exception\InvalidArgumentException as LockInvalidArgumentException;
 use Symfony\Component\Lock\Exception\LockReleasingException;
-use Symfony\Component\Lock\Factory;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\Lock\Store\FlockStore;
@@ -60,7 +62,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     private $cache;
 
     /**
-     * @var Factory|LockFactory
+     * @var LockFactory
      */
     private $lockFactory;
 
@@ -111,14 +113,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
             $defaultLockStore = $this->getDefaultLockStore($options['cache_directory']);
 
-            if (class_exists(LockFactory::class)) {
-                // Symfony >= 4.4
-                return new LockFactory($defaultLockStore);
-            }
-
-            // Symfony < 4.4
-            return new Factory($defaultLockStore);
-        })->setAllowedTypes('lock_factory', [Factory::class, LockFactory::class]);
+            return new LockFactory($defaultLockStore);
+        })->setAllowedTypes('lock_factory', LockFactory::class);
 
         $this->options = $resolver->resolve($options);
         $this->cache = $this->options['cache'];
@@ -132,7 +128,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @return Response|null A Response instance, or null if no cache entry was found
      */
-    public function lookup(Request $request)
+    public function lookup(Request $request): ?Response
     {
         $cacheKey = $this->getCacheKey($request);
 
@@ -175,7 +171,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @return string The key under which the response is stored
      */
-    public function write(Request $request, Response $response)
+    public function write(Request $request, Response $response): string
     {
         if (null === $response->getMaxAge()) {
             throw new \InvalidArgumentException('HttpCache should not forward any response without any cache expiration time to the store.');
@@ -217,16 +213,9 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         // Tags
         $tags = [];
-        if ($response->headers->has($this->options['cache_tags_header'])) {
-            // Compatibility with Symfony 3+
-            $allHeaders = $response->headers->all();
-            $key = str_replace('_', '-', strtolower($this->options['cache_tags_header']));
-            $headers = isset($allHeaders[$key]) ? $allHeaders[$key] : [];
-
-            foreach ($headers as $header) {
-                foreach (explode(',', $header) as $tag) {
-                    $tags[] = $tag;
-                }
+        foreach ($response->headers->all($this->options['cache_tags_header']) as $header) {
+            foreach (explode(',', $header) as $tag) {
+                $tags[] = $tag;
             }
         }
 
@@ -246,7 +235,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @param Request $request A Request instance
      */
-    public function invalidate(Request $request)
+    public function invalidate(Request $request): void
     {
         $cacheKey = $this->getCacheKey($request);
 
@@ -281,7 +270,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @return bool False if the lock file does not exist or cannot be unlocked, true otherwise
      */
-    public function unlock(Request $request)
+    public function unlock(Request $request): bool
     {
         $cacheKey = $this->getCacheKey($request);
 
@@ -307,7 +296,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @return bool true if lock exists, false otherwise
      */
-    public function isLocked(Request $request)
+    public function isLocked(Request $request): bool
     {
         $cacheKey = $this->getCacheKey($request);
 
@@ -325,7 +314,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @return bool true if the URL exists and has been purged, false otherwise
      */
-    public function purge($url)
+    public function purge($url): bool
     {
         $cacheKey = $this->getCacheKey(Request::create($url));
 
@@ -337,7 +326,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * {@inheritdoc}
      */
-    public function cleanup()
+    public function cleanup(): void
     {
         try {
             foreach ($this->locks as $lock) {
@@ -364,7 +353,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         try {
             return $this->cache->invalidateTags($tags);
-        } catch (InvalidArgumentException $e) {
+        } catch (CacheInvalidArgumentException $e) {
             return false;
         }
     }
@@ -372,7 +361,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     /**
      * {@inheritdoc}
      */
-    public function prune()
+    public function prune(): void
     {
         if (!$this->cache instanceof PruneableInterface) {
             return;
@@ -391,7 +380,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     /**
      * {@inheritdoc}
      */
-    public function clear()
+    public function clear(): void
     {
         // Make sure we do not have multiple clearing or pruning processes running
         $lock = $this->lockFactory->createLock(self::CLEANUP_LOCK_KEY);
@@ -404,11 +393,9 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * @return string
-     *
      * @internal Do not use in public code, this is for unit testing purposes only
      */
-    public function getCacheKey(Request $request)
+    public function getCacheKey(Request $request): string
     {
         // Strip scheme to treat https and http the same
         $uri = $request->getUri();
@@ -418,11 +405,9 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * @return string|null
-     *
      * @internal Do not use in public code, this is for unit testing purposes only
      */
-    public function generateContentDigest(Response $response)
+    public function generateContentDigest(Response $response): ?string
     {
         if ($response instanceof BinaryFileResponse) {
             return 'bf'.hash_file('sha256', $response->getFile()->getPathname());
@@ -435,10 +420,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return 'en'.hash('sha256', $response->getContent());
     }
 
-    /**
-     * @return string
-     */
-    private function getVaryKey(array $vary, Request $request)
+    private function getVaryKey(array $vary, Request $request): string
     {
         if (0 === \count($vary)) {
             return self::NON_VARYING_KEY;
@@ -468,7 +450,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return hash('sha256', $hashData);
     }
 
-    private function saveContentDigest(Response $response)
+    private function saveContentDigest(Response $response): void
     {
         if ($response->headers->has('X-Content-Digest')) {
             return;
@@ -516,7 +498,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         // Make sure the content-length header is present
         if (!$response->headers->has('Transfer-Encoding')) {
-            $response->headers->set('Content-Length', \strlen($response->getContent()));
+            $response->headers->set('Content-Length', \strlen((string) $response->getContent()));
         }
     }
 
@@ -524,10 +506,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      * Test whether a given digest identifies a BinaryFileResponse.
      *
      * @param string $digest
-     *
-     * @return bool
      */
-    private function isBinaryFileResponseContentDigest($digest)
+    private function isBinaryFileResponseContentDigest($digest): bool
     {
         return 'bf' === substr($digest, 0, 2);
     }
@@ -538,7 +518,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      * This only happens during write operations so cache retrieval is not
      * slowed down.
      */
-    private function autoPruneExpiredEntries()
+    private function autoPruneExpiredEntries(): void
     {
         if (0 === $this->options['prune_threshold']) {
             return;
@@ -560,13 +540,10 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     }
 
     /**
-     * @param mixed $data
      * @param int   $expiresAfter
      * @param array $tags
-     *
-     * @return bool
      */
-    private function saveDeferred(CacheItemInterface $item, $data, $expiresAfter = null, $tags = [])
+    private function saveDeferred(CacheItemInterface $item, $data, $expiresAfter = null, $tags = []): bool
     {
         $item->set($data);
         $item->expiresAfter($expiresAfter);
@@ -582,10 +559,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      * Restores a Response from the cached data.
      *
      * @param array $cacheData An array containing the cache data
-     *
-     * @return Response|null
      */
-    private function restoreResponse(array $cacheData)
+    private function restoreResponse(array $cacheData): ?Response
     {
         // Check for content digest header
         if (!isset($cacheData['headers']['x-content-digest'][0])) {
@@ -645,15 +620,13 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      * @param string $cacheDir
      *
      * @return LockStoreInterface|BlockingStoreInterface
-     *
-     * @codeCoverageIgnore Depends on your system.
      */
     private function getDefaultLockStore($cacheDir)
     {
-        if (SemaphoreStore::isSupported(false)) {
+        try {
             return new SemaphoreStore();
+        } catch (LockInvalidArgumentException $exception) {
+            return new FlockStore($cacheDir);
         }
-
-        return new FlockStore($cacheDir);
     }
 }

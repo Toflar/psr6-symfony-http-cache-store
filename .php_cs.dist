@@ -36,6 +36,10 @@ return PhpCsFixer\Config::create()
             'strict_comparison' => true,
             'strict_param' => true,
             'native_function_invocation' => ['include' => ['@compiler_optimized']],
+            'declare_strict_types' => true,
+            'no_superfluous_phpdoc_tags' => true,
+            'phpdoc_to_return_type' => true,
+            'void_return' => true,
         )
     )
     ->setFinder(
