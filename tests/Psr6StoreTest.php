@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the toflar/psr6-symfony-http-cache-store package.
  *
@@ -36,18 +38,18 @@ class Psr6StoreTest extends TestCase
      */
     private $store;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->store = new Psr6Store(['cache_directory' => sys_get_temp_dir()]);
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $this->getCache()->clear();
         $this->store->cleanup();
     }
 
-    public function testCustomCacheWithoutLockFactory()
+    public function testCustomCacheWithoutLockFactory(): void
     {
         $this->expectException(MissingOptionsException::class);
         $this->expectExceptionMessage('The cache_directory option is required unless you set the lock_factory explicitly as by default locks are also stored in the configured cache_directory.');
@@ -59,11 +61,12 @@ class Psr6StoreTest extends TestCase
         ]);
     }
 
-    public function testCustomCacheAndLockFactory()
+    public function testCustomCacheAndLockFactory(): void
     {
         $cache = $this->createMock(TagAwareAdapterInterface::class);
         $cache->expects($this->once())
-            ->method('deleteItem');
+            ->method('deleteItem')
+            ->willReturn(true);
         $lockFactory = $this->createFactoryMock();
 
         $store = new Psr6Store([
@@ -74,7 +77,7 @@ class Psr6StoreTest extends TestCase
         $store->purge('/');
     }
 
-    public function testItLocksTheRequest()
+    public function testItLocksTheRequest(): void
     {
         $request = Request::create('/');
         $result = $this->store->lock($request);
@@ -83,7 +86,7 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->store->isLocked($request), 'Request is locked.');
     }
 
-    public function testLockReturnsFalseIfTheLockWasAlreadyAcquired()
+    public function testLockReturnsFalseIfTheLockWasAlreadyAcquired(): void
     {
         $request = Request::create('/');
         $this->store->lock($request);
@@ -94,13 +97,13 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->store->isLocked($request), 'Request is locked.');
     }
 
-    public function testIsLockedReturnsFalseIfRequestIsNotLocked()
+    public function testIsLockedReturnsFalseIfRequestIsNotLocked(): void
     {
         $request = Request::create('/');
         $this->assertFalse($this->store->isLocked($request), 'Request is not locked.');
     }
 
-    public function testIsLockedReturnsTrueIfLockWasAcquired()
+    public function testIsLockedReturnsTrueIfLockWasAcquired(): void
     {
         $request = Request::create('/');
         $this->store->lock($request);
@@ -108,13 +111,13 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->store->isLocked($request), 'Request is locked.');
     }
 
-    public function testUnlockReturnsFalseIfLockWasNotAcquired()
+    public function testUnlockReturnsFalseIfLockWasNotAcquired(): void
     {
         $request = Request::create('/');
         $this->assertFalse($this->store->unlock($request), 'Request is not locked.');
     }
 
-    public function testUnlockReturnsTrueIfLockIsReleased()
+    public function testUnlockReturnsTrueIfLockIsReleased(): void
     {
         $request = Request::create('/');
         $this->store->lock($request);
@@ -123,7 +126,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($this->store->isLocked($request), 'Request is not locked.');
     }
 
-    public function testLocksAreReleasedOnCleanup()
+    public function testLocksAreReleasedOnCleanup(): void
     {
         $request = Request::create('/');
         $this->store->lock($request);
@@ -133,7 +136,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($this->store->isLocked($request), 'Request is no longer locked.');
     }
 
-    public function testSameLockCanBeAcquiredAgain()
+    public function testSameLockCanBeAcquiredAgain(): void
     {
         $request = Request::create('/');
 
@@ -142,7 +145,7 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($this->store->lock($request));
     }
 
-    public function testThrowsIfResponseHasNoExpirationTime()
+    public function testThrowsIfResponseHasNoExpirationTime(): void
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200);
@@ -152,12 +155,12 @@ class Psr6StoreTest extends TestCase
         $this->store->write($request, $response);
     }
 
-    public function testWriteThrowsExceptionIfDigestCannotBeStored()
+    public function testWriteThrowsExceptionIfDigestCannotBeStored(): void
     {
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)
             ->setConstructorArgs([$innerCache])
-            ->setMethods(['saveDeferred'])
+            ->onlyMethods(['saveDeferred'])
             ->getMock();
 
         $cache
@@ -178,7 +181,7 @@ class Psr6StoreTest extends TestCase
         $store->write($request, $response);
     }
 
-    public function testWriteStoresTheResponseContent()
+    public function testWriteStoresTheResponseContent(): void
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -193,7 +196,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame(\strlen($response->getContent()), (int) $response->headers->get('Content-Length'), 'Response content length is updated.');
     }
 
-    public function testWriteDoesNotStoreTheResponseContentOfNonOriginalResponse()
+    public function testWriteDoesNotStoreTheResponseContentOfNonOriginalResponse(): void
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -208,7 +211,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($response->headers->has('Content-Length'), 'Response content length is not updated.');
     }
 
-    public function testWriteOnlyUpdatesContentLengthIfThereIsNoTransferEncodingHeader()
+    public function testWriteOnlyUpdatesContentLengthIfThereIsNoTransferEncodingHeader(): void
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -219,7 +222,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($response->headers->has('Content-Length'), 'Response content length is not updated.');
     }
 
-    public function testWriteStoresEntries()
+    public function testWriteStoresEntries(): void
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -241,7 +244,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame($entries[Psr6Store::NON_VARYING_KEY]['headers'], array_diff_key($response->headers->all(), ['age' => []]), 'Response headers are stored with no age header.');
     }
 
-    public function testWriteAddsTags()
+    public function testWriteAddsTags(): void
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -256,7 +259,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($this->getCache()->getItem($cacheKey)->isHit());
     }
 
-    public function testWriteAddsTagsWithMultipleHeaders()
+    public function testWriteAddsTagsWithMultipleHeaders(): void
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -271,7 +274,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($this->getCache()->getItem($cacheKey)->isHit());
     }
 
-    public function testInvalidateTagsThrowsExceptionIfWrongCacheAdapterProvided()
+    public function testInvalidateTagsThrowsExceptionIfWrongCacheAdapterProvided(): void
     {
         $this->expectException(\RuntimeException::class);
         $store = new Psr6Store([
@@ -281,7 +284,7 @@ class Psr6StoreTest extends TestCase
         $store->invalidateTags(['foobar']);
     }
 
-    public function testInvalidateTagsReturnsFalseOnException()
+    public function testInvalidateTagsReturnsFalseOnException(): void
     {
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)
@@ -302,7 +305,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($store->invalidateTags(['foobar']));
     }
 
-    public function testVaryResponseDropsNonVaryingOne()
+    public function testVaryResponseDropsNonVaryingOne(): void
     {
         $request = Request::create('/');
         $nonVarying = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -327,14 +330,14 @@ class Psr6StoreTest extends TestCase
         $this->assertNotSame(Psr6Store::NON_VARYING_KEY, key($entries));
     }
 
-    public function testRegularCacheKey()
+    public function testRegularCacheKey(): void
     {
         $request = Request::create('https://foobar.com/');
         $expected = 'md'.hash('sha256', 'foobar.com/');
         $this->assertSame($expected, $this->store->getCacheKey($request));
     }
 
-    public function testHttpAndHttpsGenerateTheSameCacheKey()
+    public function testHttpAndHttpsGenerateTheSameCacheKey(): void
     {
         $request = Request::create('https://foobar.com/');
         $cacheKeyHttps = $this->store->getCacheKey($request);
@@ -344,7 +347,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame($cacheKeyHttps, $cacheKeyHttp);
     }
 
-    public function testDebugInfoIsAdded()
+    public function testDebugInfoIsAdded(): void
     {
         $request = Request::create('https://foobar.com/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -357,7 +360,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('https://foobar.com/', $entries[Psr6Store::NON_VARYING_KEY]['uri']);
     }
 
-    public function testRegularLookup()
+    public function testRegularLookup(): void
     {
         $request = Request::create('https://foobar.com/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -375,7 +378,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('enb94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9', $result->headers->get('X-Content-Digest'));
     }
 
-    public function testRegularLookupWithContentDigestsDisabled()
+    public function testRegularLookupWithContentDigestsDisabled(): void
     {
         $request = Request::create('https://foobar.com/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -397,7 +400,7 @@ class Psr6StoreTest extends TestCase
         $this->assertNull($result->headers->get('X-Content-Digest'));
     }
 
-    public function testRegularLookupWithBinaryResponse()
+    public function testRegularLookupWithBinaryResponse(): void
     {
         $request = Request::create('https://foobar.com/');
         $response = new BinaryFileResponse(__DIR__.'/Fixtures/favicon.ico', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -414,7 +417,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('bfe8149cee23ba25e6b878864c1c8b3344ee1b3d5c6d468b2e4f7593be65bb1b68', $result->headers->get('X-Content-Digest'));
     }
 
-    public function testRegularLookupWithBinaryResponseWithContentDigestsDisabled()
+    public function testRegularLookupWithBinaryResponseWithContentDigestsDisabled(): void
     {
         $request = Request::create('https://foobar.com/');
         $response = new BinaryFileResponse(__DIR__.'/Fixtures/favicon.ico', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -436,7 +439,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('bfe8149cee23ba25e6b878864c1c8b3344ee1b3d5c6d468b2e4f7593be65bb1b68', $result->headers->get('X-Content-Digest'));
     }
 
-    public function testRegularLookupWithRemovedBinaryResponse()
+    public function testRegularLookupWithRemovedBinaryResponse(): void
     {
         $request = Request::create('https://foobar.com/');
         $file = new File(__DIR__.'/Fixtures/favicon.ico');
@@ -455,12 +458,12 @@ class Psr6StoreTest extends TestCase
         $movedFile->move(__DIR__.'/Fixtures', 'favicon.ico');
     }
 
-    public function testLookupWithVaryOnCookies()
+    public function testLookupWithVaryOnCookies(): void
     {
         // Cookies match
         $request = Request::create('https://foobar.com/', 'GET', [], ['Foo' => 'Bar'], [], ['HTTP_COOKIE' => 'Foo=Bar']);
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public', 'Vary' => 'Cookie']);
-        $response->headers->setCookie(new Cookie('Foo', 'Bar', 0, '/', false, null, true, false, null));
+        $response->headers->setCookie(new Cookie('Foo', 'Bar', 0, '/'));
 
         $this->store->write($request, $response);
 
@@ -475,7 +478,7 @@ class Psr6StoreTest extends TestCase
         $this->assertNull($result);
     }
 
-    public function testLookupWithEmptyCache()
+    public function testLookupWithEmptyCache(): void
     {
         $request = Request::create('https://foobar.com/');
 
@@ -484,7 +487,7 @@ class Psr6StoreTest extends TestCase
         $this->assertNull($result);
     }
 
-    public function testLookupWithVaryResponse()
+    public function testLookupWithVaryResponse(): void
     {
         $request = Request::create('https://foobar.com/');
         $request->headers->set('Foobar', 'whatever');
@@ -504,7 +507,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('Foobar', $result->headers->get('Vary'));
     }
 
-    public function testLookupWithMultipleVaryResponse()
+    public function testLookupWithMultipleVaryResponse(): void
     {
         $jsonRequest = Request::create('https://foobar.com/');
         $jsonRequest->headers->set('Accept', 'application/json');
@@ -548,7 +551,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('text/html', $result->headers->get('Content-Type'));
     }
 
-    public function testInvalidate()
+    public function testInvalidate(): void
     {
         $request = Request::create('https://foobar.com/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
@@ -566,7 +569,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($cacheItem->isHit());
     }
 
-    public function testPurge()
+    public function testPurge(): void
     {
         // Request 1
         $request1 = Request::create('https://foobar.com/');
@@ -594,7 +597,7 @@ class Psr6StoreTest extends TestCase
         $this->assertTrue($cacheItem2->isHit());
     }
 
-    public function testClear()
+    public function testClear(): void
     {
         // Request 1
         $request1 = Request::create('https://foobar.com/');
@@ -622,11 +625,11 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($cacheItem2->isHit());
     }
 
-    public function testPruneIgnoredIfCacheBackendDoesNotImplementPrunableInterface()
+    public function testPruneIgnoredIfCacheBackendDoesNotImplementPrunableInterface(): void
     {
         $cache = $this->getMockBuilder(RedisAdapter::class)
             ->disableOriginalConstructor()
-            ->setMethods(['prune'])
+            ->addMethods(['prune'])
             ->getMock();
         $cache
             ->expects($this->never())
@@ -640,7 +643,7 @@ class Psr6StoreTest extends TestCase
         $store->prune();
     }
 
-    public function testAutoPruneExpiredEntries()
+    public function testAutoPruneExpiredEntries(): void
     {
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)
@@ -685,7 +688,7 @@ class Psr6StoreTest extends TestCase
         $store->cleanup();
     }
 
-    public function testAutoPruneIsSkippedIfThresholdDisabled()
+    public function testAutoPruneIsSkippedIfThresholdDisabled(): void
     {
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)
@@ -713,7 +716,7 @@ class Psr6StoreTest extends TestCase
         $store->cleanup();
     }
 
-    public function testAutoPruneIsSkippedIfPruningIsAlreadyInProgress()
+    public function testAutoPruneIsSkippedIfPruningIsAlreadyInProgress(): void
     {
         $innerCache = new ArrayAdapter();
         $cache = $this->getMockBuilder(TagAwareAdapter::class)
@@ -754,19 +757,19 @@ class Psr6StoreTest extends TestCase
         $store->cleanup();
     }
 
-    public function testItFailsWithoutCacheDirectoryForCache()
+    public function testItFailsWithoutCacheDirectoryForCache(): void
     {
         $this->expectException(MissingOptionsException::class);
         new Psr6Store([]);
     }
 
-    public function testItFailsWithoutCacheDirectoryForLockStore()
+    public function testItFailsWithoutCacheDirectoryForLockStore(): void
     {
         $this->expectException(MissingOptionsException::class);
         new Psr6Store(['cache' => $this->createMock(AdapterInterface::class)]);
     }
 
-    public function testUnlockReturnsFalseOnLockReleasingException()
+    public function testUnlockReturnsFalseOnLockReleasingException(): void
     {
         $lock = $this->createMock(LockInterface::class);
         $lock
@@ -791,7 +794,7 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($store->unlock($request));
     }
 
-    public function testLockReleasingExceptionIsIgnoredOnCleanup()
+    public function testLockReleasingExceptionIsIgnoredOnCleanup(): void
     {
         $lock = $this->createMock(LockInterface::class);
         $lock
@@ -821,11 +824,8 @@ class Psr6StoreTest extends TestCase
 
     /**
      * @dataProvider contentDigestExpiryProvider
-     *
-     * @param mixed $expectedExpiresAfter
-     * @param mixed $previousItemExpiration
      */
-    public function testContentDigestExpiresCorrectly(array $responseHeaders, $expectedExpiresAfter, $previousItemExpiration = 0)
+    public function testContentDigestExpiresCorrectly(array $responseHeaders, $expectedExpiresAfter, $previousItemExpiration = 0): void
     {
         // This is the mock for the meta cache item, we're not interested in this one
         $cacheItem = $this->createMock(CacheItemInterface::class);
@@ -865,6 +865,11 @@ class Psr6StoreTest extends TestCase
             )
             ->willReturnOnConsecutiveCalls($contentDigestCacheItem, $cacheItem, $cacheItem, $cacheItem);
 
+        $cache
+            ->expects($this->any())
+            ->method('saveDeferred')
+            ->willReturn(true);
+
         $store = new Psr6Store([
             'cache' => $cache,
             'lock_factory' => $this->createFactoryMock(),
@@ -898,10 +903,8 @@ class Psr6StoreTest extends TestCase
 
     /**
      * @param null $store
-     *
-     * @return TagAwareAdapterInterface
      */
-    private function getCache($store = null)
+    private function getCache($store = null): TagAwareAdapterInterface
     {
         if (null === $store) {
             $store = $this->store;

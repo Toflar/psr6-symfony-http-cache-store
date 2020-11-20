@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the toflar/psr6-symfony-http-cache-store package.
  *
@@ -30,7 +32,7 @@ interface Psr6StoreInterface extends StoreInterface
      *
      * @return bool true on success, false otherwise
      */
-    public function invalidateTags(array $tags);
+    public function invalidateTags(array $tags): bool;
 
     /**
      * Prunes expired entries.
@@ -38,5 +40,5 @@ interface Psr6StoreInterface extends StoreInterface
      * prune expired cache entries from storage if the cache adapter supports
      * it.
      */
-    public function prune();
+    public function prune(): void;
 }
