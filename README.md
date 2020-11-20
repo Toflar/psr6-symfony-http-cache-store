@@ -1,8 +1,5 @@
 # PSR-6 compatible Symfony HttpCache Store
 
-[![](https://img.shields.io/travis/Toflar/psr6-symfony-http-cache-store/master.svg?style=flat-square)](https://travis-ci.org/Toflar/psr6-symfony-http-cache-store/)
-[![](https://img.shields.io/coveralls/Toflar/psr6-symfony-http-cache-store/master.svg?style=flat-square)](https://coveralls.io/github/Toflar/psr6-symfony-http-cache-store)
-
 ## Introduction
 
 Symfony's `HttpCache` store implementation is rather old and was developed
