@@ -391,10 +391,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             $lock->release();
         }
     }
-
-    /**
-     * @internal Do not use in public code, this is for unit testing purposes only
-     */
+    
     public function getCacheKey(Request $request): string
     {
         // Strip scheme to treat https and http the same
