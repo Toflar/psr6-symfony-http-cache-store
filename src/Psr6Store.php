@@ -16,9 +16,7 @@ namespace Toflar\Psr6HttpCacheStore;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\InvalidArgumentException as CacheInvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
-use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
-use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\Cache\PruneableInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -26,14 +24,13 @@ use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Lock\BlockingStoreInterface;
 use Symfony\Component\Lock\Exception\InvalidArgumentException as LockInvalidArgumentException;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
+use Symfony\Component\Lock\PersistingStoreInterface;
 use Symfony\Component\Lock\Store\FlockStore;
 use Symfony\Component\Lock\Store\SemaphoreStore;
-use Symfony\Component\Lock\PersistingStoreInterface;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 use Symfony\Component\OptionsResolver\Options;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -96,14 +93,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
                 throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
             }
 
-            // As of Symfony 4.3+ we can use the optimized FilesystemTagAwareAdapter
-            if (class_exists(FilesystemTagAwareAdapter::class)) {
-                return new FilesystemTagAwareAdapter('', 0, $options['cache_directory']);
-            }
-
-            return new TagAwareAdapter(
-                new FilesystemAdapter('', 0, $options['cache_directory'])
-            );
+            return new FilesystemTagAwareAdapter('', 0, $options['cache_directory']);
         })->setAllowedTypes('cache', AdapterInterface::class);
 
         $resolver->setDefault('lock_factory', function (Options $options) {
@@ -391,7 +381,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             $lock->release();
         }
     }
-    
+
     public function getCacheKey(Request $request): string
     {
         // Strip scheme to treat https and http the same
