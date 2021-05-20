@@ -172,7 +172,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         $cacheKey = $this->getCacheKey($request);
         $headers = $response->headers->all();
-        unset($headers['age']);
+        unset($headers['age'], $headers['date']);
 
         $item = $this->cache->getItem($cacheKey);
 
