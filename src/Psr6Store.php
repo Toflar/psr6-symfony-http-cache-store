@@ -44,9 +44,9 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  */
 class Psr6Store implements Psr6StoreInterface, ClearableInterface
 {
-    const NON_VARYING_KEY = 'non-varying';
-    const COUNTER_KEY = 'write-operations-counter';
-    const CLEANUP_LOCK_KEY = 'cleanup-lock';
+    public const NON_VARYING_KEY = 'non-varying';
+    public const COUNTER_KEY = 'write-operations-counter';
+    public const CLEANUP_LOCK_KEY = 'cleanup-lock';
 
     /**
      * @var array
