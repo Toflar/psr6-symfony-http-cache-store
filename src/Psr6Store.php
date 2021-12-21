@@ -13,11 +13,11 @@ declare(strict_types=1);
 
 namespace Toflar\Psr6HttpCacheStore;
 
-use Psr\Cache\CacheItemInterface;
 use Psr\Cache\InvalidArgumentException as CacheInvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
+use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\Cache\PruneableInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
@@ -48,25 +48,14 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     public const COUNTER_KEY = 'write-operations-counter';
     public const CLEANUP_LOCK_KEY = 'cleanup-lock';
 
-    /**
-     * @var array
-     */
-    private $options;
-
-    /**
-     * @var TagAwareAdapterInterface
-     */
-    private $cache;
-
-    /**
-     * @var LockFactory
-     */
-    private $lockFactory;
+    private array $options;
+    private AdapterInterface $cache;
+    private LockFactory $lockFactory;
 
     /**
      * @var LockInterface[]
      */
-    private $locks = [];
+    private array $locks = [];
 
     /**
      * When creating a Psr6Store you can configure a number options.
@@ -111,17 +100,11 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $this->lockFactory = $this->options['lock_factory'];
     }
 
-    /**
-     * Locates a cached Response for the Request provided.
-     *
-     * @param Request $request A Request instance
-     *
-     * @return Response|null A Response instance, or null if no cache entry was found
-     */
     public function lookup(Request $request): ?Response
     {
         $cacheKey = $this->getCacheKey($request);
 
+        /** @var CacheItem $item */
         $item = $this->cache->getItem($cacheKey);
 
         if (!$item->isHit()) {
@@ -150,17 +133,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return null;
     }
 
-    /**
-     * Writes a cache entry to the store for the given Request and Response.
-     *
-     * Existing entries are read and any that match the response are removed. This
-     * method calls write with the new list of cache entries.
-     *
-     * @param Request  $request  A Request instance
-     * @param Response $response A Response instance
-     *
-     * @return string The key under which the response is stored
-     */
     public function write(Request $request, Response $response): string
     {
         if (null === $response->getMaxAge()) {
@@ -174,6 +146,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $headers = $response->headers->all();
         unset($headers['age']);
 
+        /** @var CacheItem $item */
         $item = $this->cache->getItem($cacheKey);
 
         if (!$item->isHit()) {
@@ -220,11 +193,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return $cacheKey;
     }
 
-    /**
-     * Invalidates all cache entries that match the request.
-     *
-     * @param Request $request A Request instance
-     */
     public function invalidate(Request $request): void
     {
         $cacheKey = $this->getCacheKey($request);
@@ -232,14 +200,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $this->cache->deleteItem($cacheKey);
     }
 
-    /**
-     * Locks the cache for a given Request.
-     *
-     * @param Request $request A Request instance
-     *
-     * @return bool|string true if the lock is acquired, the path to the current lock otherwise
-     */
-    public function lock(Request $request)
+    public function lock(Request $request): bool|string
     {
         $cacheKey = $this->getCacheKey($request);
 
@@ -253,13 +214,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return $this->locks[$cacheKey]->acquire();
     }
 
-    /**
-     * Releases the lock for the given Request.
-     *
-     * @param Request $request A Request instance
-     *
-     * @return bool False if the lock file does not exist or cannot be unlocked, true otherwise
-     */
     public function unlock(Request $request): bool
     {
         $cacheKey = $this->getCacheKey($request);
@@ -279,13 +233,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return true;
     }
 
-    /**
-     * Returns whether or not a lock exists.
-     *
-     * @param Request $request A Request instance
-     *
-     * @return bool true if lock exists, false otherwise
-     */
     public function isLocked(Request $request): bool
     {
         $cacheKey = $this->getCacheKey($request);
@@ -297,25 +244,13 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return $this->locks[$cacheKey]->isAcquired();
     }
 
-    /**
-     * Purges data for the given URL.
-     *
-     * @param string $url A URL
-     *
-     * @return bool true if the URL exists and has been purged, false otherwise
-     */
-    public function purge($url): bool
+    public function purge(string $url): bool
     {
         $cacheKey = $this->getCacheKey(Request::create($url));
 
         return $this->cache->deleteItem($cacheKey);
     }
 
-    /**
-     * Release all locks.
-     *
-     * {@inheritdoc}
-     */
     public function cleanup(): void
     {
         try {
@@ -485,7 +420,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         // Make sure the content-length header is present
         if (!$response->headers->has('Transfer-Encoding')) {
-            $response->headers->set('Content-Length', \strlen((string) $response->getContent()));
+            $response->headers->set('Content-Length', (string) \strlen((string) $response->getContent()));
         }
     }
 
@@ -526,16 +461,12 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $this->cache->saveDeferred($item);
     }
 
-    /**
-     * @param int   $expiresAfter
-     * @param array $tags
-     */
-    private function saveDeferred(CacheItemInterface $item, $data, $expiresAfter = null, $tags = []): bool
+    private function saveDeferred(CacheItem $item, $data, ?int $expiresAfter = null, array $tags = []): bool
     {
         $item->set($data);
         $item->expiresAfter($expiresAfter);
 
-        if (0 !== \count($tags) && method_exists($item, 'tag')) {
+        if (0 !== \count($tags)) {
             $item->tag($tags);
         }
 

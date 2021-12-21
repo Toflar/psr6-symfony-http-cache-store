@@ -20,13 +20,13 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
+use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
-use Symfony\Component\Lock\Factory;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
@@ -67,7 +67,7 @@ class Psr6StoreTest extends TestCase
         $cache->expects($this->once())
             ->method('deleteItem')
             ->willReturn(true);
-        $lockFactory = $this->createFactoryMock();
+        $lockFactory = $this->createMock(LockFactory::class);
 
         $store = new Psr6Store([
             'cache' => $cache,
@@ -226,7 +226,7 @@ class Psr6StoreTest extends TestCase
     {
         $request = Request::create('/');
         $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
-        $response->headers->set('age', 120);
+        $response->headers->set('age', '120');
 
         $cacheKey = $this->store->getCacheKey($request);
 
@@ -665,7 +665,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willReturn(true);
 
-        $lockFactory = $this->createFactoryMock();
+        $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
@@ -734,7 +734,7 @@ class Psr6StoreTest extends TestCase
             ->method('acquire')
             ->willReturn(false);
 
-        $lockFactory = $this->createFactoryMock();
+        $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory
             ->expects($this->any())
             ->method('createLock')
@@ -777,7 +777,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willThrowException(new LockReleasingException());
 
-        $lockFactory = $this->createFactoryMock();
+        $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory
             ->expects($this->once())
             ->method('createLock')
@@ -802,7 +802,7 @@ class Psr6StoreTest extends TestCase
             ->method('release')
             ->willThrowException(new LockReleasingException());
 
-        $lockFactory = $this->createFactoryMock();
+        $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory
             ->expects($this->once())
             ->method('createLock')
@@ -827,30 +827,23 @@ class Psr6StoreTest extends TestCase
      */
     public function testContentDigestExpiresCorrectly(array $responseHeaders, $expectedExpiresAfter, $previousItemExpiration = 0): void
     {
-        // This is the mock for the meta cache item, we're not interested in this one
-        $cacheItem = $this->createMock(CacheItemInterface::class);
+        // This is the stub for the meta cache item, we're not interested in this one
+        $cacheItem = new CacheItem();
 
         // This is the one we're interested in this test
-        $contentDigestCacheItem = $this->createMock(CacheItemInterface::class);
-        $contentDigestCacheItem
-            ->expects($this->once())
-            ->method('isHit')
-            ->willReturn(0 !== $previousItemExpiration);
+        $contentDigestCacheItem = new CacheItem();
+        $r = new \ReflectionProperty($contentDigestCacheItem, 'isHit');
+        $r->setAccessible(true);
+        $r->setValue($contentDigestCacheItem, 0 !== $previousItemExpiration);
 
         if (0 !== $previousItemExpiration) {
-            $contentDigestCacheItem
-                ->expects($this->once())
-                ->method('get')
-                ->willReturn(['expires' => $previousItemExpiration, 'contents' => 'foobar']);
+            $r = new \ReflectionProperty($contentDigestCacheItem, 'value');
+            $r->setAccessible(true);
+            $r->setValue($contentDigestCacheItem, ['expires' => $previousItemExpiration, 'contents' => 'foobar']);
         } else {
             $contentDigestCacheItem
-                ->expects($this->once())
-                ->method('set')
-                ->with(['expires' => $expectedExpiresAfter, 'contents' => 'foobar']);
-            $contentDigestCacheItem
-                ->expects($this->once())
-                ->method('expiresAfter')
-                ->with($expectedExpiresAfter);
+                ->set(['expires' => $expectedExpiresAfter, 'contents' => 'foobar'])
+                ->expiresAfter($expectedExpiresAfter);
         }
 
         $cache = $this->createMock(AdapterInterface::class);
@@ -872,7 +865,7 @@ class Psr6StoreTest extends TestCase
 
         $store = new Psr6Store([
             'cache' => $cache,
-            'lock_factory' => $this->createFactoryMock(),
+            'lock_factory' => $this->createMock(LockFactory::class),
         ]);
 
         $response = new Response('foobar', 200, $responseHeaders);
@@ -915,16 +908,5 @@ class Psr6StoreTest extends TestCase
         $cache->setAccessible(true);
 
         return $cache->getValue($this->store);
-    }
-
-    private function createFactoryMock()
-    {
-        if (class_exists(LockFactory::class)) {
-            // Symfony >= 4.4
-            return $this->createMock(LockFactory::class);
-        }
-
-        // Symfony < 4.4
-        return $this->createMock(Factory::class);
     }
 }
