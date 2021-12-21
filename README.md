@@ -33,29 +33,6 @@ $ composer require toflar/psr6-symfony-http-cache-store
 
 ## Configuration
 
-For the Symfony 3 standard edition file structure, use the `Psr6Store` by
-enabling it in your `AppCache` as follows:
-
-```php
-<?php
-
-    // app/AppCache.php
-
-    /**
-     * Overwrite constructor to register the Psr6Store.
-     */
-    public function __construct(
-        HttpKernelInterface $kernel,
-        SurrogateInterface $surrogate = null,
-        array $options = []
-    ) {
-        $store = new Psr6Store(['cache_directory' => $kernel->getCacheDir()]);
-
-        parent::__construct($kernel, $store, $surrogate, $options);
-    }
-    
-```
-
 For the Symfony 4/Flex structure, you need to adjust your `index.php` like this:
 
 ```php
