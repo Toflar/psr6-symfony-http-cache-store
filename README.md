@@ -1,5 +1,10 @@
 # PSR-6 compatible Symfony HttpCache Store
 
+## Supported branches
+
+* For PHP ^7.2 and Symfony <6, use version 3.x
+* For PHP ^8.0 and Symfony >6, use version 4.x
+
 ## Introduction
 
 Symfony's `HttpCache` store implementation is rather old and was developed
