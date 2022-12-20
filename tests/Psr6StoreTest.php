@@ -333,7 +333,12 @@ class Psr6StoreTest extends TestCase
     public function testRegularCacheKey(): void
     {
         $request = Request::create('https://foobar.com/');
-        $expected = 'md'.hash('sha256', 'foobar.com/');
+        $expected = 'md'.hash(
+            version_compare(PHP_VERSION, '8.1.0', '>=')
+                ? 'xxh128'
+                : 'sha256',
+            'foobar.com/'
+        );
         $this->assertSame($expected, $this->store->getCacheKey($request));
     }
 
@@ -375,7 +380,11 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('hello world', $result->getContent());
         $this->assertSame('whatever', $result->headers->get('Foobar'));
 
-        $this->assertSame('enb94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9', $result->headers->get('X-Content-Digest'));
+        $this->assertSame(
+            version_compare(PHP_VERSION, '8.1.0', '>=')
+                ? 'endf8d09e93f874900a99b8775cc15b6c7' // xxh128
+                : 'enb94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9' // sha256
+        , $result->headers->get('X-Content-Digest'));
     }
 
     public function testRegularLookupWithContentDigestsDisabled(): void
@@ -851,10 +860,25 @@ class Psr6StoreTest extends TestCase
             ->expects($this->exactly(3))
             ->method('getItem')
             ->withConsecutive(
-                ['enc3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2'], // content digest
-                ['md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665'], // meta
+                [
+                    // content digest
+                    version_compare(PHP_VERSION, '8.1.0', '>=')
+                        ? 'en3c9e102628997f44ac87b0b131c6992d' // xxh128
+                        : 'enc3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2' // sha256
+                ],
+                [
+                    // meta
+                    version_compare(PHP_VERSION, '8.1.0', '>=')
+                        ? 'md0d10c3ce367c3309e789ed924fa6b183' // xxh128
+                        : 'md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665' // sha256
+                ],
                 [Psr6Store::COUNTER_KEY], // write counter
-                ['md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665'] // meta again
+                [
+                    // meta again
+                    version_compare(PHP_VERSION, '8.1.0', '>=')
+                        ? 'md0d10c3ce367c3309e789ed924fa6b183' // xxh128
+                        : 'md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665' // sha256
+                ]
             )
             ->willReturnOnConsecutiveCalls($contentDigestCacheItem, $cacheItem, $cacheItem, $cacheItem);
 

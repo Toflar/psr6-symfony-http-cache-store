@@ -57,6 +57,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      */
     private array $locks = [];
 
+    private string $hashAlgorithm;
+
     /**
      * When creating a Psr6Store you can configure a number options.
      * See the README for a list of all available options and their description.
@@ -98,6 +100,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $this->options = $resolver->resolve($options);
         $this->cache = $this->options['cache'];
         $this->lockFactory = $this->options['lock_factory'];
+        $this->hashAlgorithm = version_compare(PHP_VERSION, '8.1.0', '>=') ? 'xxh128' : 'sha256';
     }
 
     public function lookup(Request $request): ?Response
@@ -323,7 +326,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $uri = $request->getUri();
         $uri = substr($uri, \strlen($request->getScheme().'://'));
 
-        return 'md'.hash('sha256', $uri);
+        return 'md'.hash($this->hashAlgorithm, $uri);
     }
 
     /**
@@ -339,7 +342,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             return null;
         }
 
-        return 'en'.hash('sha256', $response->getContent());
+        return 'en'.hash($this->hashAlgorithm, $response->getContent());
     }
 
     private function getVaryKey(array $vary, Request $request): string
