@@ -60,7 +60,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     private string $hashAlgorithm;
 
     /**
-     * When creating a Psr6Store you can configure a number options.
+     * When creating a Psr6Store you can configure a number of options.
      * See the README for a list of all available options and their description.
      */
     public function __construct(array $options = [])
@@ -100,7 +100,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $this->options = $resolver->resolve($options);
         $this->cache = $this->options['cache'];
         $this->lockFactory = $this->options['lock_factory'];
-        $this->hashAlgorithm = version_compare(PHP_VERSION, '8.1.0', '>=') ? 'xxh128' : 'sha256';
+        $this->hashAlgorithm = \PHP_VERSION_ID >= 80100 ? 'xxh128' : 'sha256';
     }
 
     public function lookup(Request $request): ?Response
@@ -227,7 +227,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         try {
             $this->locks[$cacheKey]->release();
-        } catch (LockReleasingException $e) {
+        } catch (LockReleasingException) {
             return false;
         } finally {
             unset($this->locks[$cacheKey]);
@@ -260,7 +260,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             foreach ($this->locks as $lock) {
                 $lock->release();
             }
-        } catch (LockReleasingException $e) {
+        } catch (LockReleasingException) {
             // noop
         } finally {
             $this->locks = [];
@@ -281,7 +281,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         try {
             return $this->cache->invalidateTags($tags);
-        } catch (CacheInvalidArgumentException $e) {
+        } catch (CacheInvalidArgumentException) {
             return false;
         }
     }
@@ -508,13 +508,13 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         // BC
         if (\is_string($value)) {
-            $value = ['expires' => 0, 'contents' => $value];
+            $value = ['contents' => $value];
         }
 
         if ($this->isBinaryFileResponseContentDigest($cacheData['headers']['x-content-digest'][0])) {
             try {
                 $file = new File($value['contents']);
-            } catch (FileNotFoundException $e) {
+            } catch (FileNotFoundException) {
                 return null;
             }
 
@@ -542,7 +542,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     {
         try {
             return new SemaphoreStore();
-        } catch (LockInvalidArgumentException $exception) {
+        } catch (LockInvalidArgumentException) {
             return new FlockStore($cacheDir);
         }
     }
