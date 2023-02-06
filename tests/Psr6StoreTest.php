@@ -33,10 +33,7 @@ use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
 class Psr6StoreTest extends TestCase
 {
-    /**
-     * @var Psr6Store
-     */
-    private $store;
+    private Psr6Store $store;
 
     protected function setUp(): void
     {
@@ -334,7 +331,7 @@ class Psr6StoreTest extends TestCase
     {
         $request = Request::create('https://foobar.com/');
         $expected = 'md'.hash(
-            version_compare(PHP_VERSION, '8.1.0', '>=')
+            \PHP_VERSION_ID >= 80100
                 ? 'xxh128'
                 : 'sha256',
             'foobar.com/'
@@ -381,7 +378,7 @@ class Psr6StoreTest extends TestCase
         $this->assertSame('whatever', $result->headers->get('Foobar'));
 
         $this->assertSame(
-            version_compare(PHP_VERSION, '8.1.0', '>=')
+            \PHP_VERSION_ID >= 80100
                 ? 'endf8d09e93f874900a99b8775cc15b6c7' // xxh128
                 : 'enb94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9' // sha256
         , $result->headers->get('X-Content-Digest'));
@@ -535,7 +532,7 @@ class Psr6StoreTest extends TestCase
         $result = $this->store->lookup($request);
         $this->assertNull($result);
 
-        // Should return null because header provided but non matching content
+        // Should return null because header provided but non-matching content
         $request = Request::create('https://foobar.com/');
         $request->headers->set('Accept', 'application/xml');
         $result = $this->store->lookup($request);
@@ -862,20 +859,20 @@ class Psr6StoreTest extends TestCase
             ->withConsecutive(
                 [
                     // content digest
-                    version_compare(PHP_VERSION, '8.1.0', '>=')
+                    \PHP_VERSION_ID >= 80100
                         ? 'en3c9e102628997f44ac87b0b131c6992d' // xxh128
                         : 'enc3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2' // sha256
                 ],
                 [
                     // meta
-                    version_compare(PHP_VERSION, '8.1.0', '>=')
+                    \PHP_VERSION_ID >= 80100
                         ? 'md0d10c3ce367c3309e789ed924fa6b183' // xxh128
                         : 'md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665' // sha256
                 ],
                 [Psr6Store::COUNTER_KEY], // write counter
                 [
                     // meta again
-                    version_compare(PHP_VERSION, '8.1.0', '>=')
+                    \PHP_VERSION_ID >= 80100
                         ? 'md0d10c3ce367c3309e789ed924fa6b183' // xxh128
                         : 'md390aa862a7f27c16d72dd40967066969e7eb4b102c6215478a275766bf046665' // sha256
                 ]
