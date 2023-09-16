@@ -11,18 +11,19 @@
     ],
     "require": {
         "php": "^8.0",
-        "symfony/lock": "^6.0",
-        "symfony/cache": "^6.0",
-        "symfony/http-foundation": "^6.0",
-        "symfony/http-kernel": "^6.0",
-        "symfony/options-resolver": "^6.0"
+        "symfony/lock": "^6.0 || ^7.0",
+        "symfony/cache": "^6.0 || ^7.0",
+        "symfony/http-foundation": "^6.0 || ^7.0",
+        "symfony/http-kernel": "^6.0 || ^7.0",
+        "symfony/options-resolver": "^6.0 || ^7.0"
     },
     "require-dev": {
-        "symfony/phpunit-bridge": "^6.0"
+        "symfony/phpunit-bridge": "^6.0 || ^7.0"
     },
     "autoload": {
         "psr-4": {
             "Toflar\\Psr6HttpCacheStore\\": "src"
         }
-    }
+    },
+    "minimum-stability": "dev"
 }
