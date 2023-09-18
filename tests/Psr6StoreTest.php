@@ -28,7 +28,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\LockFactory;
-use Symfony\Component\Lock\LockInterface;
+use Symfony\Component\Lock\SharedLockInterface;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
 class Psr6StoreTest extends TestCase
@@ -661,15 +661,14 @@ class Psr6StoreTest extends TestCase
             ->expects($this->exactly(3))
             ->method('prune');
 
-        $lock = $this->createMock(LockInterface::class);
+        $lock = $this->createMock(SharedLockInterface::class);
         $lock
             ->expects($this->exactly(3))
             ->method('acquire')
             ->willReturn(true);
         $lock
             ->expects($this->exactly(3))
-            ->method('release')
-            ->willReturn(true);
+            ->method('release');
 
         $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory
@@ -734,7 +733,7 @@ class Psr6StoreTest extends TestCase
             ->expects($this->never())
             ->method('prune');
 
-        $lock = $this->createMock(LockInterface::class);
+        $lock = $this->createMock(SharedLockInterface::class);
         $lock
             ->expects($this->exactly(3))
             ->method('acquire')
@@ -777,7 +776,7 @@ class Psr6StoreTest extends TestCase
 
     public function testUnlockReturnsFalseOnLockReleasingException(): void
     {
-        $lock = $this->createMock(LockInterface::class);
+        $lock = $this->createMock(SharedLockInterface::class);
         $lock
             ->expects($this->once())
             ->method('release')
@@ -802,7 +801,7 @@ class Psr6StoreTest extends TestCase
 
     public function testLockReleasingExceptionIsIgnoredOnCleanup(): void
     {
-        $lock = $this->createMock(LockInterface::class);
+        $lock = $this->createMock(SharedLockInterface::class);
         $lock
             ->expects($this->once())
             ->method('release')
