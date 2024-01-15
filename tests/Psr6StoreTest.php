@@ -650,7 +650,7 @@ class Psr6StoreTest extends TestCase
             'cache' => $cache,
             'lock_factory' => $lockFactory,
             'generate_content_digests' => false,
-            'gzip_level' => 9
+            'gzip_level' => 4
         ]);
 
         $regularRequest = Request::create('https://foobar.com/');
@@ -664,8 +664,8 @@ class Psr6StoreTest extends TestCase
         $cacheItem = $cache->getItem($cacheKey);
         $this->assertTrue($cacheItem->isHit());
 
-        // Should be gzip encoded on level 9
-        $this->assertSame(gzencode('hello world', 9), $cacheItem->get()['non-varying']['content']);
+        // Should be gzip encoded on level 4
+        $this->assertSame(gzencode('hello world', 4), $cacheItem->get()['non-varying']['content']);
 
         // Content should be decoded if we don't support gzip
         $response = $store->lookup(Request::create('https://foobar.com/'));
@@ -674,7 +674,7 @@ class Psr6StoreTest extends TestCase
 
         // Content should be gzip encoded if we support gzip
         $response = $store->lookup($gzipSupportingRequest);
-        $this->assertSame(gzencode('hello world', 9), $response->getContent());
+        $this->assertSame(gzencode('hello world', 4), $response->getContent());
         $this->assertSame('gzip', $response->headers->get('Content-Encoding'));
 
         // Gzipped cache file still exists but for some reason, gzip features are not available on the system anymore
@@ -698,7 +698,7 @@ class Psr6StoreTest extends TestCase
             'cache' => $cache,
             'lock_factory' => $lockFactory,
             'generate_content_digests' => false,
-            'gzip_level' => 9
+            'gzip_level' => 6
         ]);
 
         $request = Request::create('https://foobar.com/');

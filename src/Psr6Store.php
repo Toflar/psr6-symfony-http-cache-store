@@ -80,7 +80,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $resolver->setDefault('generate_content_digests', true)
             ->setAllowedTypes('generate_content_digests', 'boolean');
 
-        $resolver->setDefault('gzip_level', 9)
+        $resolver->setDefault('gzip_level', 6)
             ->setAllowedTypes('gzip_level', 'int')
             ->setNormalizer('gzip_level', function (Options $options, int $value): int {
                 if ($value < 0 || $value > 9) {

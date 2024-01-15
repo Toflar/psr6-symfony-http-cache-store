@@ -102,7 +102,7 @@ passing an array of `$options` in the constructor:
   deactivate gzipping.
 
   **Type**: `int`
-  **Default**: `9`
+  **Default**: `6`
   
 ### Generating Content Digests
 
