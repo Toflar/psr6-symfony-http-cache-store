@@ -97,6 +97,12 @@ passing an array of `$options` in the constructor:
 
   **Type**: `boolean`
   **Default**: `true`
+
+* **gzip_level**: Whether or not content digests should be generated.
+  See "Generating Content Digests" for more information.
+
+  **Type**: `int`
+  **Default**: `9`
   
 ### Generating Content Digests
 

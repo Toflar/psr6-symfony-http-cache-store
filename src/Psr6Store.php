@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Toflar\Psr6HttpCacheStore;
 
+use Psr\Cache\CacheItemInterface;
 use Psr\Cache\InvalidArgumentException as CacheInvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
@@ -79,6 +80,16 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $resolver->setDefault('generate_content_digests', true)
             ->setAllowedTypes('generate_content_digests', 'boolean');
 
+        $resolver->setDefault('gzip_level', 9)
+            ->setAllowedTypes('gzip_level', 'int')
+            ->setNormalizer('gzip_level', function (Options $options, int $value): int {
+                if ($value < 0 || $value > 9) {
+                    throw new \InvalidArgumentException('The gzip_level has to be between 0 (disabled) and 9.');
+                }
+
+                return $value;
+            });
+
         $resolver->setDefault('cache', function (Options $options) {
             if (!isset($options['cache_directory'])) {
                 throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
@@ -119,7 +130,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         foreach ($entries as $varyKeyResponse => $responseData) {
             // This can only happen if one entry only
             if (self::NON_VARYING_KEY === $varyKeyResponse) {
-                return $this->restoreResponse($responseData);
+                return $this->restoreResponse($request, $responseData);
             }
 
             // Otherwise we have to see if Vary headers match
@@ -129,7 +140,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             );
 
             if ($varyKeyRequest === $varyKeyResponse) {
-                return $this->restoreResponse($responseData);
+                return $this->restoreResponse($request, $responseData);
             }
         }
 
@@ -146,8 +157,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $this->saveContentDigest($response);
 
         $cacheKey = $this->getCacheKey($request);
-        $headers = $response->headers->all();
-        unset($headers['age']);
 
         /** @var CacheItem $item */
         $item = $this->cache->getItem($cacheKey);
@@ -162,15 +171,18 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $varyKey = $this->getVaryKey($response->getVary(), $request);
         $entries[$varyKey] = [
             'vary' => $response->getVary(),
-            'headers' => $headers,
             'status' => $response->getStatusCode(),
             'uri' => $request->getUri(), // For debugging purposes
         ];
 
         // Add content if content digests are disabled
         if (!$this->options['generate_content_digests']) {
+            $this->gzipResponse($response);
             $entries[$varyKey]['content'] = $response->getContent();
         }
+
+        // Set headers (after potentially gzipping the response)
+        $entries[$varyKey]['headers'] = $this->getHeadersForCache($response);
 
         // If the response has a Vary header we remove the non-varying entry
         if ($response->hasVary()) {
@@ -194,6 +206,14 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         $this->cache->commit();
 
         return $cacheKey;
+    }
+
+    private function getHeadersForCache(Response $response): array
+    {
+        $headers = $response->headers->all();
+        unset($headers['age']);
+
+        return $headers;
     }
 
     public function invalidate(Request $request): void
@@ -375,6 +395,26 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         return hash('sha256', $hashData);
     }
 
+    private function isResponseGzipped(Response $response): bool
+    {
+        return $response->headers->get('Content-Encoding') === 'gzip';
+    }
+
+    private function doesRequestSupportGzip(Request $request): bool
+    {
+        return \in_array('gzip', $request->getEncodings());
+    }
+
+    private function isGzipSupported(): bool
+    {
+        return $this->options['gzip_level'] !== 0 && function_exists('gzencode') && function_exists('gzdecode');
+    }
+
+    private function isCacheGzipped(array $headers): bool
+    {
+        return isset($headers['content-encoding'][0]) && $headers['content-encoding'][0] === 'gzip';
+    }
+
     private function saveContentDigest(Response $response): void
     {
         if ($response->headers->has('X-Content-Digest')) {
@@ -391,20 +431,17 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         if ($digestCacheItem->isHit()) {
             $cacheValue = $digestCacheItem->get();
-
-            // BC
-            if (\is_string($cacheValue)) {
-                $cacheValue = [
-                    'expires' => 0, // Forces update to the new format
-                    'contents' => $cacheValue,
-                ];
-            }
         } else {
+            if ($this->isBinaryFileResponseContentDigest($contentDigest)) {
+                $contents = $response->getFile()->getPathname();
+            } else {
+                $this->gzipResponse($response);
+                $contents = $response->getContent();
+            }
+
             $cacheValue = [
                 'expires' => 0, // Forces storing the new entry
-                'contents' => $this->isBinaryFileResponseContentDigest($contentDigest) ?
-                    $response->getFile()->getPathname() :
-                    $response->getContent(),
+                'contents' => $contents
             ];
         }
 
@@ -425,6 +462,25 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         if (!$response->headers->has('Transfer-Encoding')) {
             $response->headers->set('Content-Length', (string) \strlen((string) $response->getContent()));
         }
+    }
+
+    private function gzipResponse(Response $response): void
+    {
+        // Not supported or already gzipped
+        if ($response instanceof BinaryFileResponse || !$this->isGzipSupported() || $this->isResponseGzipped($response)) {
+            return;
+        }
+
+        $encoded = gzencode((string) $response->getContent(), $this->options['gzip_level']);
+
+        // Could not gzip
+        if (false === $encoded) {
+            return;
+        }
+
+        // Update the content and set the encoding header
+        $response->setContent($encoded);
+        $response->headers->set('Content-Encoding', 'gzip');
     }
 
     /**
@@ -481,13 +537,14 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
      *
      * @param array $cacheData An array containing the cache data
      */
-    private function restoreResponse(array $cacheData): ?Response
+    private function restoreResponse(Request $request, array $cacheData): ?Response
     {
         // Check for content digest header
         if (!isset($cacheData['headers']['x-content-digest'][0])) {
             // No digest was generated but the content was stored inline
             if (isset($cacheData['content'])) {
-                return new Response(
+                return $this->buildResponseFromCache(
+                    $request,
                     $cacheData['content'],
                     $cacheData['status'],
                     $cacheData['headers']
@@ -506,11 +563,6 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
         $value = $item->get();
 
-        // BC
-        if (\is_string($value)) {
-            $value = ['contents' => $value];
-        }
-
         if ($this->isBinaryFileResponseContentDigest($cacheData['headers']['x-content-digest'][0])) {
             try {
                 $file = new File($value['contents']);
@@ -525,11 +577,56 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             );
         }
 
-        return new Response(
+        return $this->buildResponseFromCache(
+            $request,
             $value['contents'],
             $cacheData['status'],
             $cacheData['headers']
         );
+    }
+
+    private function buildResponseFromCache(Request $request, string $contents, int $status, array $headers): ?Response
+    {
+        // If the cache entry is not gzipped we return the file as is.
+        if (!$this->isCacheGzipped($headers)) {
+            return new Response(
+                $contents,
+                $status,
+                $headers
+            );
+        }
+
+        // Otherwise it was gzipped. Let's check if the client supports gzip, in which case we'll also return as is for
+        // the client to decode
+        if ($this->doesRequestSupportGzip($request)) {
+            return new Response(
+                $contents,
+                $status,
+                $headers
+            );
+        }
+
+        // Otherwise we now have to decode which we can only do if our setup supports it
+        if ($this->isGzipSupported()) {
+            $decoded = gzdecode($contents);
+
+            if (false === $decoded) {
+                return null;
+            }
+
+            // Unset the encoding header because it is now not encoded anymore
+            unset($headers['content-encoding']);
+
+            return new Response(
+                $decoded,
+                $status,
+                $headers
+            );
+        }
+
+        // Cache file was encoded (previously gzipping was supported and now the setup has changed but the cached entries
+        // are still here) but could not be decoded anymore here - we're unable to serve a response now.
+        return null;
     }
 
     /**
