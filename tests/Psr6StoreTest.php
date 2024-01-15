@@ -690,6 +690,29 @@ class Psr6StoreTest extends TestCase
         $this->assertNull($store->lookup($regularRequest));
     }
 
+    public function testIgnoresGzipIfResponseIsAlreadyEncoded(): void
+    {
+        $cache = new ArrayAdapter();
+        $lockFactory = new LockFactory(new InMemoryStore());
+        $store = new Psr6Store([
+            'cache' => $cache,
+            'lock_factory' => $lockFactory,
+            'generate_content_digests' => false,
+            'gzip_level' => 9
+        ]);
+
+        $request = Request::create('https://foobar.com/');
+        $response = new Response('CwWAaGVsbG8gd29ybGQD', 200, ['Cache-Control' => 's-maxage=600, public', 'Content-Encoding' => 'br']);
+        $store->write($request, $response);
+
+        $cacheKey = $store->getCacheKey($request);
+        $cacheItem = $cache->getItem($cacheKey);
+        $this->assertTrue($cacheItem->isHit());
+
+        // Should be untouched as it is already brotli encoded
+        $this->assertSame('CwWAaGVsbG8gd29ybGQD', $cacheItem->get()['non-varying']['content']);
+    }
+
     public function testPruneIgnoredIfCacheBackendDoesNotImplementPrunableInterface(): void
     {
         $cache = $this->getMockBuilder(RedisAdapter::class)

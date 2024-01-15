@@ -466,8 +466,12 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
 
     private function gzipResponse(Response $response): void
     {
-        // Not supported or already gzipped
-        if ($response instanceof BinaryFileResponse || !$this->isGzipSupported() || $this->isResponseGzipped($response)) {
+        // Do not gzip if already encoded or not supported
+        if ($response->headers->has('Content-Encoding') ||
+            $response instanceof BinaryFileResponse ||
+            !$this->isGzipSupported() ||
+            $this->isResponseGzipped($response)
+        ) {
             return;
         }
 
