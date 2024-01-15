@@ -98,8 +98,8 @@ passing an array of `$options` in the constructor:
   **Type**: `boolean`
   **Default**: `true`
 
-* **gzip_level**: Whether or not content digests should be generated.
-  See "Generating Content Digests" for more information.
+* **gzip_level**: The gzip level to reduce the required cache storage. Use `0` to
+  deactivate gzipping.
 
   **Type**: `int`
   **Default**: `9`
