@@ -29,6 +29,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\SharedLockInterface;
+use Symfony\Component\Lock\Store\InMemoryStore;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
 class Psr6StoreTest extends TestCase
@@ -55,6 +56,16 @@ class Psr6StoreTest extends TestCase
 
         new Psr6Store([
             'cache' => $cache,
+        ]);
+    }
+
+    public function testWrongGzipLevel(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The gzip_level has to be between 0 (disabled) and 9.');
+
+        new Psr6Store([
+            'gzip_level' => 20
         ]);
     }
 
@@ -631,6 +642,77 @@ class Psr6StoreTest extends TestCase
         $this->assertFalse($cacheItem2->isHit());
     }
 
+    public function testGzipHandling(): void
+    {
+        $cache = new ArrayAdapter();
+        $lockFactory = new LockFactory(new InMemoryStore());
+        $store = new Psr6Store([
+            'cache' => $cache,
+            'lock_factory' => $lockFactory,
+            'generate_content_digests' => false,
+            'gzip_level' => 4
+        ]);
+
+        $regularRequest = Request::create('https://foobar.com/');
+        $gzipSupportingRequest = Request::create('https://foobar.com/');
+        $gzipSupportingRequest->headers->set('Accept-Encoding', 'gzip, deflate, br');
+
+        $response = new Response('hello world', 200, ['Cache-Control' => 's-maxage=600, public']);
+        $store->write($regularRequest, $response);
+
+        $cacheKey = $store->getCacheKey($regularRequest);
+        $cacheItem = $cache->getItem($cacheKey);
+        $this->assertTrue($cacheItem->isHit());
+
+        // Should be gzip encoded on level 4
+        $this->assertSame(gzencode('hello world', 4), $cacheItem->get()['non-varying']['content']);
+
+        // Content should be decoded if we don't support gzip
+        $response = $store->lookup(Request::create('https://foobar.com/'));
+        $this->assertSame('hello world', $response->getContent());
+        $this->assertFalse($response->headers->has('Content-Encoding'));
+
+        // Content should be gzip encoded if we support gzip
+        $response = $store->lookup($gzipSupportingRequest);
+        $this->assertSame(gzencode('hello world', 4), $response->getContent());
+        $this->assertSame('gzip', $response->headers->get('Content-Encoding'));
+
+        // Gzipped cache file still exists but for some reason, gzip features are not available on the system anymore
+        // so we cannot decode it anymore - in this case, lookup should work for gzip supporting request but fail for
+        // the regular request as decoding doesn't work.
+        $store = new Psr6Store([
+            'cache' => $cache,
+            'lock_factory' => $lockFactory,
+            'generate_content_digests' => false,
+            'gzip_level' => 0 // Same as not having gzip features available
+        ]);
+        $this->assertInstanceOf(Response::class, $store->lookup($gzipSupportingRequest));
+        $this->assertNull($store->lookup($regularRequest));
+    }
+
+    public function testIgnoresGzipIfResponseIsAlreadyEncoded(): void
+    {
+        $cache = new ArrayAdapter();
+        $lockFactory = new LockFactory(new InMemoryStore());
+        $store = new Psr6Store([
+            'cache' => $cache,
+            'lock_factory' => $lockFactory,
+            'generate_content_digests' => false,
+            'gzip_level' => 6
+        ]);
+
+        $request = Request::create('https://foobar.com/');
+        $response = new Response('CwWAaGVsbG8gd29ybGQD', 200, ['Cache-Control' => 's-maxage=600, public', 'Content-Encoding' => 'br']);
+        $store->write($request, $response);
+
+        $cacheKey = $store->getCacheKey($request);
+        $cacheItem = $cache->getItem($cacheKey);
+        $this->assertTrue($cacheItem->isHit());
+
+        // Should be untouched as it is already brotli encoded
+        $this->assertSame('CwWAaGVsbG8gd29ybGQD', $cacheItem->get()['non-varying']['content']);
+    }
+
     public function testPruneIgnoredIfCacheBackendDoesNotImplementPrunableInterface(): void
     {
         $cache = $this->getMockBuilder(RedisAdapter::class)
@@ -886,6 +968,7 @@ class Psr6StoreTest extends TestCase
         $store = new Psr6Store([
             'cache' => $cache,
             'lock_factory' => $this->createMock(LockFactory::class),
+            'gzip_level' => 0,
         ]);
 
         $response = new Response('foobar', 200, $responseHeaders);

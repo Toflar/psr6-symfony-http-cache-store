@@ -97,6 +97,12 @@ passing an array of `$options` in the constructor:
 
   **Type**: `boolean`
   **Default**: `true`
+
+* **gzip_level**: The gzip level to reduce the required cache storage. Use `0` to
+  deactivate gzipping.
+
+  **Type**: `int`
+  **Default**: `6`
   
 ### Generating Content Digests
 
