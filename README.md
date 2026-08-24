@@ -3,7 +3,7 @@
 ## Supported branches
 
 * For PHP ^7.2 and Symfony <6, use version 3.x
-* For PHP ^8.0 and Symfony >6, use version 4.x
+* For PHP ^8.1 and Symfony >=6, use version 4.x
 
 ## Introduction
 
@@ -19,8 +19,7 @@ This bundle thus provides an alternative `StoreInterface` implementation
 that…
 
 * …instead of re-implementing locking and caching mechanisms again, uses the well
-tested Symfony Cache and Lock components, both with the local filesystem adapters
-by default.
+tested Symfony Cache and Lock components, with local storage by default.
 * …thanks to the `TagAwareAdapterInterface` of the Cache component, supports tag
 based cache invalidation.
 * …thanks to the `PrunableInterface` of the Cache component, supports auto-pruning
@@ -73,7 +72,14 @@ passing an array of `$options` in the constructor:
   Make sure that `lock` and `cache` have the same scope. *See warning below!*
 
   **Type**: `Symfony\Component\Cache\Adapter\AdapterInterface`
-  **Default**: `FilesystemAdapter` instance with `cache_directory`
+  **Default**: On Symfony 8.2 or newer with the PDO SQLite driver available, a
+  `PdoTagAwareAdapter` backed by `cache_directory/http-cache.sqlite`. On older
+  Symfony versions or without PDO SQLite, a `FilesystemTagAwareAdapter` backed
+  by `cache_directory`. SQLite connections wait up to five seconds for a
+  concurrent writer to release its lock.
+
+  Upgrading to Symfony 8.2 changes the default cache backend. Existing entries
+  in the filesystem cache are not migrated and will be treated as cache misses.
 
 * **lock_factory**: Explicitly specify the lock factory you want to use. Make
   sure that lock and cache have the same scope. *See warning below!*
