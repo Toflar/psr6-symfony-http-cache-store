@@ -26,6 +26,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\SharedLockInterface;
@@ -217,6 +218,18 @@ class Psr6StoreTest extends TestCase
         $this->store->write($request, $response);
 
         $this->assertFalse($response->headers->has('Content-Length'), 'Response content length is not updated.');
+    }
+
+    public function testWriteDoesNotStoreAResponseWithoutContent(): void
+    {
+        $request = Request::create('https://foobar.com/');
+        $response = new StreamedResponse(static function (): void {
+            echo 'hello world';
+        }, 200, ['Cache-Control' => 's-maxage=600, public']);
+
+        $this->store->write($request, $response);
+
+        $this->assertNull($this->store->lookup($request));
     }
 
     public function testWriteStoresEntries(): void
