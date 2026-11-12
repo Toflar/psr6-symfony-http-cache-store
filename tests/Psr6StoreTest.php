@@ -17,6 +17,8 @@ use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
+use Symfony\Component\Cache\Adapter\PdoTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
@@ -73,6 +75,19 @@ class Psr6StoreTest extends TestCase
         ]);
 
         $store->purge('/');
+    }
+
+    public function testUsesBestAvailableDefaultCache(): void
+    {
+        $cache = $this->getCache();
+
+        if (class_exists(PdoTagAwareAdapter::class) && class_exists(\PDO::class) && \in_array('sqlite', \PDO::getAvailableDrivers(), true)) {
+            $this->assertInstanceOf(PdoTagAwareAdapter::class, $cache);
+
+            return;
+        }
+
+        $this->assertInstanceOf(FilesystemTagAwareAdapter::class, $cache);
     }
 
     public function testItLocksTheRequest(): void

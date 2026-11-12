@@ -16,6 +16,7 @@ namespace Toflar\Psr6HttpCacheStore;
 use Psr\Cache\InvalidArgumentException as CacheInvalidArgumentException;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
+use Symfony\Component\Cache\Adapter\PdoTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\Cache\PruneableInterface;
@@ -47,6 +48,8 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
     public const NON_VARYING_KEY = 'non-varying';
     public const COUNTER_KEY = 'write-operations-counter';
     public const CLEANUP_LOCK_KEY = 'cleanup-lock';
+    private const CACHE_DATABASE_FILENAME = 'http-cache.sqlite';
+    private const SQLITE_BUSY_TIMEOUT = 5;
 
     private array $options;
     private AdapterInterface $cache;
@@ -84,7 +87,7 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
                 throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
             }
 
-            return new FilesystemTagAwareAdapter('', 0, $options['cache_directory']);
+            return $this->getDefaultCache($options['cache_directory']);
         })->setAllowedTypes('cache', AdapterInterface::class);
 
         $resolver->setDefault('lock_factory', function (Options $options) {
@@ -549,5 +552,17 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
         } catch (LockInvalidArgumentException) {
             return new FlockStore($cacheDir);
         }
+    }
+
+    private function getDefaultCache(string $cacheDir): AdapterInterface
+    {
+        if (class_exists(PdoTagAwareAdapter::class) && class_exists(\PDO::class) && \in_array('sqlite', \PDO::getAvailableDrivers(), true)) {
+            return new PdoTagAwareAdapter(
+                'sqlite:'.$cacheDir.'/'.self::CACHE_DATABASE_FILENAME,
+                options: ['db_connection_options' => [\PDO::ATTR_TIMEOUT => self::SQLITE_BUSY_TIMEOUT]],
+            );
+        }
+
+        return new FilesystemTagAwareAdapter('', 0, $cacheDir);
     }
 }
