@@ -142,6 +142,10 @@ class Psr6Store implements Psr6StoreInterface, ClearableInterface
             throw new \InvalidArgumentException('HttpCache should not forward any response without any cache expiration time to the store.');
         }
 
+        if (!$response instanceof BinaryFileResponse && false === $response->getContent()) {
+            return $this->getCacheKey($request);
+        }
+
         // Save the content digest if required
         $this->saveContentDigest($response);
 
